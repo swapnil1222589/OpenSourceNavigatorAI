@@ -11,6 +11,10 @@ Thumbs.db
 .env.local
 .env.*.local
 *.env
+!.env.example
+!*.env.example
+!*.env.local.example
+!.env.local.example
 
 # Python / Backend
 __pycache__/
@@ -30,8 +34,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
@@ -63,6 +65,8 @@ models/
 *.bin
 *.gguf
 
-# Logs
+# Logs & Runtime PIDs
 logs/
 *.log
+.running_pids
+scripts/.running_pids

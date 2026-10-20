@@ -161,6 +161,7 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
             "format": "json",
             "options": {
                 "temperature": 0.2,
+                "num_predict": 1200,
             },
         }
 

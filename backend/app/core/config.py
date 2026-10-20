@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # Ollama Integration
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "deepseek-r1:8b"  # Configurable: e.g. qwen3:4b, deepseek-r1:8b, etc.
-    OLLAMA_TIMEOUT_SECONDS: float = 120.0
+    OLLAMA_TIMEOUT_SECONDS: float = 180.0
     
     # CORS
     FRONTEND_ORIGIN: str = "http://localhost:3000"
