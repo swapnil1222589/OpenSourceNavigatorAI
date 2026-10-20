@@ -14,6 +14,8 @@ import {
   ListOrdered,
   PlusCircle,
   RotateCcw,
+  BookOpen,
+  CheckCircle2,
 } from 'lucide-react';
 import { AnalysisResult } from '../lib/types';
 
@@ -45,7 +47,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
         </div>
         <h3 className="text-lg font-bold text-slate-100">Analyzing GitHub Issue with Open-Weight AI</h3>
         <p className="mt-2 text-sm text-slate-400 max-w-md">
-          Running local inference on Ollama to dissect the problem statement, formulate an investigation roadmap, and assess contributor skills...
+          Retrieving verified repository structure, dissecting the problem statement, and formulating a customized contribution roadmap...
         </p>
       </div>
     );
@@ -107,6 +109,8 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
     }
   };
 
+  const repoContext = analysis.retrieved_repo_context;
+
   return (
     <div className="space-y-6">
       {/* Disclaimer Notice */}
@@ -122,11 +126,17 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
       <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl backdrop-blur-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-mono text-emerald-400 mb-1">
+            <div className="flex flex-wrap items-center gap-2 text-xs font-mono text-emerald-400 mb-1">
               <FolderGit2 className="h-3.5 w-3.5" />
               <span>{analysis.repository_name}</span>
               <span className="text-slate-600">•</span>
               <span className="text-purple-400 font-sans font-medium">Model: {analysis.model_used}</span>
+              {analysis.user_skill_level && (
+                <>
+                  <span className="text-slate-600">•</span>
+                  <span className="text-sky-400 font-sans font-medium">Profile: {analysis.user_skill_level}</span>
+                </>
+              )}
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-white leading-tight">
               {analysis.issue_title}
@@ -134,6 +144,19 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {repoContext?.contributing_url && (
+              <a
+                href={repoContext.contributing_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-950/30 hover:bg-emerald-900/40 px-3 py-2 text-xs font-semibold text-emerald-300 transition-all"
+                title="View CONTRIBUTING.md"
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                <span>Contributing Guide</span>
+              </a>
+            )}
+
             <a
               href={analysis.issue_url}
               target="_blank"
@@ -222,19 +245,26 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
           </div>
         </div>
 
-        {/* Suggested Inspection Areas (Hypotheses) */}
+        {/* Suggested Inspection Areas (Grounded with Verified Files) */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
           <div className="flex items-center justify-between text-sm font-bold text-slate-200 mb-3">
             <div className="flex items-center gap-2">
               <FileCode2 className="h-4 w-4 text-emerald-400" />
-              <h3>Suggested Repository Areas to Inspect</h3>
+              <h3>Suggested Repository Inspection Targets</h3>
             </div>
-            <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400 border border-slate-700">
-              Hypotheses Only
-            </span>
+            {repoContext?.verified_files && repoContext.verified_files.length > 0 ? (
+              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400 border border-emerald-500/30">
+                <CheckCircle2 className="h-3 w-3" />
+                Repo-Aware
+              </span>
+            ) : (
+              <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] text-slate-400 border border-slate-700">
+                Hypotheses Only
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-400 mb-3">
-            Based solely on the issue context without direct file inspection. Verify actual paths against the repository.
+            Files verified against repository contents are marked in green; uninspected paths are flagged as hypotheses.
           </p>
 
           <div className="space-y-2.5">
@@ -243,13 +273,19 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
                 key={idx}
                 className="rounded-xl border border-slate-800/80 bg-slate-950/80 p-3 text-xs"
               >
-                <div className="flex items-center gap-2 font-mono text-emerald-400 font-medium">
-                  <span>{area.area_or_path}</span>
-                  <span className="rounded bg-emerald-500/10 px-1.5 py-0.2 text-[9px] text-emerald-400">
-                    Hypothesis
-                  </span>
+                <div className="flex items-center justify-between gap-2 font-mono">
+                  <span className="text-slate-100 font-medium">{area.area_or_path}</span>
+                  {area.is_verified_in_repo ? (
+                    <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400 border border-emerald-500/30 font-sans font-medium shrink-0">
+                      ✓ Verified in Repo
+                    </span>
+                  ) : (
+                    <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400 border border-amber-500/30 font-sans font-medium shrink-0">
+                      Hypothesis
+                    </span>
+                  )}
                 </div>
-                <p className="mt-1 text-slate-300 leading-relaxed">{area.rationale}</p>
+                <p className="mt-1.5 text-slate-300 leading-relaxed">{area.rationale}</p>
               </div>
             ))}
           </div>

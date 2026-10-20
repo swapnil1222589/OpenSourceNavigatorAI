@@ -16,6 +16,8 @@ export async function fetchIssues(params: {
   q?: string;
   language?: string;
   label?: string;
+  repo?: string;
+  page?: number;
   per_page?: number;
   sort?: string;
 }): Promise<IssueSearchResponse> {
@@ -23,6 +25,8 @@ export async function fetchIssues(params: {
   if (params.q) query.set('q', params.q);
   if (params.language && params.language !== 'all') query.set('language', params.language);
   if (params.label && params.label !== 'all') query.set('label', params.label);
+  if (params.repo) query.set('repo', params.repo);
+  if (params.page) query.set('page', params.page.toString());
   if (params.per_page) query.set('per_page', params.per_page.toString());
   if (params.sort) query.set('sort', params.sort);
 
@@ -44,6 +48,7 @@ export async function analyzeIssue(payload: {
   repository_name: string;
   issue_url: string;
   labels?: string[];
+  user_skill_level?: string;
 }): Promise<AnalysisResult> {
   const res = await fetch(`${API_BASE}/api/v1/analyze`, {
     method: 'POST',

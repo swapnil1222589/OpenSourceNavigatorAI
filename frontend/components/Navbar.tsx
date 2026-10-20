@@ -1,19 +1,23 @@
 'use client';
 
 import React from 'react';
-import { Compass, Sparkles, Cpu, GitBranch, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Compass, Sparkles, Cpu, GitBranch, CheckCircle2, AlertCircle, GraduationCap } from 'lucide-react';
 import { HealthStatus } from '../lib/types';
 
 interface NavbarProps {
   health: HealthStatus | null;
   healthLoading: boolean;
   onRefreshHealth: () => void;
+  userSkill: string;
+  onSkillChange: (skill: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   health,
   healthLoading,
   onRefreshHealth,
+  userSkill,
+  onSkillChange,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
@@ -38,8 +42,24 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
 
-        {/* System Health Indicators */}
+        {/* Right side controls */}
         <div className="flex items-center gap-3">
+          {/* Skill Profile Selector */}
+          <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1.5 text-xs text-slate-300">
+            <GraduationCap className="h-3.5 w-3.5 text-emerald-400" />
+            <span className="hidden sm:inline text-slate-400">Skill:</span>
+            <select
+              value={userSkill}
+              onChange={(e) => onSkillChange(e.target.value)}
+              className="bg-transparent text-xs font-semibold text-emerald-400 focus:outline-none cursor-pointer"
+              title="Tailor AI explanations and difficulty assessment to your skill level"
+            >
+              <option value="Beginner" className="bg-slate-900 text-slate-200">Beginner</option>
+              <option value="Intermediate" className="bg-slate-900 text-slate-200">Intermediate</option>
+              <option value="Advanced" className="bg-slate-900 text-slate-200">Advanced</option>
+            </select>
+          </div>
+
           {/* Ollama Status Pill */}
           <button
             onClick={onRefreshHealth}
@@ -82,13 +102,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Source badge */}
           <a
-            href="https://github.com"
+            href="https://github.com/swapnil1222589/OpenSourceNavigatorAI"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/30 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-600/30 transition-all"
+            className="hidden lg:flex items-center gap-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/30 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-600/30 transition-all"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Open-Weight AI</span>
+            <span>Open-Weight AI</span>
           </a>
         </div>
       </div>

@@ -1,18 +1,20 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Search, Filter, RotateCw, Tag, Code2, ArrowUpDown } from 'lucide-react';
+import { Search, Filter, RotateCw, Tag, Code2, ArrowUpDown, FolderGit2 } from 'lucide-react';
 
 interface FilterProps {
   query: string;
   language: string;
   label: string;
+  repo: string;
   perPage: number;
   sort: string;
   onFilterChange: (filters: {
     query?: string;
     language?: string;
     label?: string;
+    repo?: string;
     perPage?: number;
     sort?: string;
   }) => void;
@@ -45,6 +47,7 @@ export const IssueSearchFilters: React.FC<FilterProps> = ({
   query,
   language,
   label,
+  repo,
   perPage,
   sort,
   onFilterChange,
@@ -52,6 +55,7 @@ export const IssueSearchFilters: React.FC<FilterProps> = ({
   loading,
 }) => {
   const [searchInput, setSearchInput] = useState(query);
+  const [repoInput, setRepoInput] = useState(repo);
 
   // Debounce search query input (500ms)
   useEffect(() => {
@@ -64,6 +68,17 @@ export const IssueSearchFilters: React.FC<FilterProps> = ({
     return () => clearTimeout(handler);
   }, [searchInput, query, onFilterChange]);
 
+  // Debounce repo input (500ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (repoInput !== repo) {
+        onFilterChange({ repo: repoInput });
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [repoInput, repo, onFilterChange]);
+
   const quickFilter = (newLang?: string, newLabel?: string) => {
     onFilterChange({
       language: newLang !== undefined ? newLang : language,
@@ -74,23 +89,38 @@ export const IssueSearchFilters: React.FC<FilterProps> = ({
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-sm shadow-xl">
       <div className="flex flex-col gap-4">
-        {/* Main Search Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="relative flex-1">
+        {/* Main Search Bar & Target Repo Row */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+          {/* Keywords Search */}
+          <div className="relative md:col-span-7">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by topic, repository name (e.g. fastapi), or keywords..."
+              placeholder="Search by keywords, bug summary, or topic..."
               className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
             />
           </div>
 
+          {/* Specific Repository Filter */}
+          <div className="relative md:col-span-3">
+            <FolderGit2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-emerald-400" />
+            <input
+              type="text"
+              value={repoInput}
+              onChange={(e) => setRepoInput(e.target.value)}
+              placeholder="Repo: owner/repo"
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-white placeholder-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 transition-colors"
+              title="Filter by specific repository (e.g. fastapi/fastapi)"
+            />
+          </div>
+
+          {/* Refresh Button */}
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition-all disabled:opacity-50 cursor-pointer"
+            className="md:col-span-2 flex items-center justify-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 transition-all disabled:opacity-50 cursor-pointer"
             title="Refresh issues"
           >
             <RotateCw className={`h-4 w-4 ${loading ? 'animate-spin text-emerald-400' : ''}`} />

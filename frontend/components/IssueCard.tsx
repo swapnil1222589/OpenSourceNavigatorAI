@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { ExternalLink, MessageSquare, Calendar, Sparkles, FolderGit2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { ExternalLink, MessageSquare, Calendar, Sparkles, FolderGit2, ChevronDown, ChevronUp } from 'lucide-react';
 import { IssueItem } from '../lib/types';
 
 interface IssueCardProps {
@@ -15,6 +15,8 @@ export const IssueCard: React.FC<IssueCardProps> = ({
   onAnalyze,
   isAnalyzing,
 }) => {
+  const [expanded, setExpanded] = useState(false);
+
   const formattedDate = new Date(issue.created_at).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -47,11 +49,20 @@ export const IssueCard: React.FC<IssueCardProps> = ({
           {issue.title}
         </h3>
 
-        {/* Body snippet */}
+        {/* Body snippet or expanded view */}
         {issue.body && (
-          <p className="mt-2 text-xs text-slate-400 line-clamp-2 leading-relaxed">
-            {issue.body.replace(/[#*`_]/g, '')}
-          </p>
+          <div className="mt-2 text-xs text-slate-400 leading-relaxed">
+            <p className={expanded ? 'whitespace-pre-wrap max-h-60 overflow-y-auto bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 text-slate-300' : 'line-clamp-2'}>
+              {issue.body.replace(/[#*`_]/g, '')}
+            </p>
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="mt-1 text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium cursor-pointer"
+            >
+              <span>{expanded ? 'Show Less' : 'Read Full Description'}</span>
+              {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+          </div>
         )}
 
         {/* Labels */}

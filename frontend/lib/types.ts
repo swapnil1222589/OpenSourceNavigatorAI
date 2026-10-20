@@ -22,6 +22,9 @@ export interface IssueItem {
 export interface IssueSearchResponse {
   total_count: number;
   items: IssueItem[];
+  page: number;
+  per_page: number;
+  total_pages: number;
   rate_limited: boolean;
   rate_limit_reset?: number | null;
   message?: string | null;
@@ -31,6 +34,7 @@ export interface SuggestedAreaHypothesis {
   area_or_path: string;
   rationale: string;
   is_hypothesis: boolean;
+  is_verified_in_repo?: boolean;
 }
 
 export interface AnalysisResult {
@@ -50,6 +54,12 @@ export interface AnalysisResult {
   maintainer_questions: string[];
   verification_checklist: string[];
   model_used: string;
+  user_skill_level?: string;
+  retrieved_repo_context?: {
+    verified_files?: string[];
+    contributing_found?: boolean;
+    contributing_url?: string | null;
+  } | null;
   disclaimer: string;
 }
 
@@ -57,6 +67,7 @@ export interface ChecklistItem {
   id: string;
   text: string;
   completed: boolean;
+  custom?: boolean;
 }
 
 export type PlanStatus = 'Not Started' | 'In Progress' | 'Completed';

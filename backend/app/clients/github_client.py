@@ -1,5 +1,6 @@
+import math
 import time
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import httpx
 
 from app.core.config import settings
@@ -7,13 +8,15 @@ from app.schemas.issue import IssueItem, IssueLabel, IssueSearchResponse
 
 
 class GitHubClient:
-    """Client for interacting with the GitHub REST API with caching and rate limit handling."""
+    """Client for interacting with the GitHub REST API with caching, repository structure discovery, and rate limit handling."""
 
     def __init__(self, token: Optional[str] = None):
         self.token = token or settings.GITHUB_TOKEN
         self.base_url = settings.GITHUB_API_BASE_URL.rstrip("/")
         # In-memory query cache: {query_key: (timestamp, IssueSearchResponse)}
         self._cache: Dict[str, Tuple[float, IssueSearchResponse]] = {}
+        # In-memory repo context cache: {repo_name: (timestamp, dict)}
+        self._repo_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
         self.cache_ttl = settings.GITHUB_SEARCH_CACHE_TTL_SECONDS
 
     def _get_headers(self) -> Dict[str, str]:
@@ -30,6 +33,7 @@ class GitHubClient:
         query: str = "",
         language: Optional[str] = None,
         label: Optional[str] = None,
+        repo: Optional[str] = None,
     ) -> str:
         """Construct a valid GitHub issue search query with qualifiers, strictly excluding pull requests."""
         parts = ["is:issue", "state:open"]
@@ -38,11 +42,16 @@ class GitHubClient:
         if clean_query:
             parts.append(clean_query)
 
+        if repo and repo.strip():
+            # Validate repo format owner/name
+            clean_repo = repo.strip().replace("https://github.com/", "").rstrip("/")
+            if "/" in clean_repo:
+                parts.append(f"repo:{clean_repo}")
+
         if language and language.strip():
             parts.append(f"language:{language.strip()}")
 
         if label and label.strip():
-            # If label has spaces, quote it
             lbl = label.strip()
             if " " in lbl and not lbl.startswith('"'):
                 parts.append(f'label:"{lbl}"')
@@ -53,7 +62,6 @@ class GitHubClient:
 
     def _parse_issue(self, raw: dict) -> IssueItem:
         """Transform raw GitHub issue dictionary into an IssueItem."""
-        # Extract repository name from repository_url: "https://api.github.com/repos/owner/name"
         repo_url = raw.get("repository_url", "")
         repo_parts = repo_url.rstrip("/").split("/")
         if len(repo_parts) >= 2:
@@ -93,14 +101,17 @@ class GitHubClient:
         query: str = "",
         language: Optional[str] = None,
         label: Optional[str] = None,
+        repo: Optional[str] = None,
+        page: int = 1,
         per_page: int = 15,
         sort: str = "updated",
     ) -> IssueSearchResponse:
-        """Search issues via GitHub API with rate limit detection and brief caching."""
+        """Search issues via GitHub API with rate limit detection, pagination, and caching."""
+        page = max(1, page)
         per_page = max(1, min(per_page, 50))
-        q = self.build_query(query=query, language=language, label=label)
+        q = self.build_query(query=query, language=language, label=label, repo=repo)
 
-        cache_key = f"{q}:{per_page}:{sort}"
+        cache_key = f"{q}:{page}:{per_page}:{sort}"
         now = time.time()
 
         # Check cache
@@ -111,6 +122,7 @@ class GitHubClient:
 
         params = {
             "q": q,
+            "page": page,
             "per_page": per_page,
             "sort": sort,
             "order": "desc",
@@ -123,7 +135,6 @@ class GitHubClient:
                 res = await client.get(url, headers=self._get_headers(), params=params)
 
                 # Check rate limit headers
-                remaining = res.headers.get("x-ratelimit-remaining")
                 reset_ts = res.headers.get("x-ratelimit-reset")
                 rate_limit_reset = int(reset_ts) if reset_ts and reset_ts.isdigit() else None
 
@@ -135,6 +146,9 @@ class GitHubClient:
                     return IssueSearchResponse(
                         total_count=0,
                         items=[],
+                        page=page,
+                        per_page=per_page,
+                        total_pages=0,
                         rate_limited=True,
                         rate_limit_reset=rate_limit_reset,
                         message=msg,
@@ -145,6 +159,9 @@ class GitHubClient:
                     return IssueSearchResponse(
                         total_count=0,
                         items=[],
+                        page=page,
+                        per_page=per_page,
+                        total_pages=0,
                         rate_limited=False,
                         message=error_msg,
                     )
@@ -152,7 +169,7 @@ class GitHubClient:
                 data = res.json()
                 raw_items = data.get("items", [])
 
-                # Explicitly exclude pull requests (GitHub search API returns PRs unless filtered)
+                # Explicitly exclude pull requests
                 issues = [
                     self._parse_issue(item)
                     for item in raw_items
@@ -160,9 +177,14 @@ class GitHubClient:
                 ]
 
                 total_count = data.get("total_count", len(issues))
+                total_pages = max(1, math.ceil(total_count / per_page)) if total_count > 0 else 1
+
                 response = IssueSearchResponse(
                     total_count=total_count,
                     items=issues,
+                    page=page,
+                    per_page=per_page,
+                    total_pages=total_pages,
                     rate_limited=False,
                     message=None,
                 )
@@ -175,6 +197,9 @@ class GitHubClient:
             return IssueSearchResponse(
                 total_count=0,
                 items=[],
+                page=page,
+                per_page=per_page,
+                total_pages=0,
                 rate_limited=False,
                 message="GitHub API request timed out. Please check your network connection and try again.",
             )
@@ -182,6 +207,50 @@ class GitHubClient:
             return IssueSearchResponse(
                 total_count=0,
                 items=[],
+                page=page,
+                per_page=per_page,
+                total_pages=0,
                 rate_limited=False,
                 message=f"Network error communicating with GitHub API: {str(e)}",
             )
+
+    async def get_repo_context(self, repo_name: str) -> Dict[str, Any]:
+        """Fetch verified repository layout and contributing guidelines from GitHub API."""
+        clean_repo = repo_name.strip().replace("https://github.com/", "").strip("/")
+        if "/" not in clean_repo:
+            return {"verified_files": [], "contributing_found": False}
+
+        now = time.time()
+        if clean_repo in self._repo_cache:
+            ts, cached_ctx = self._repo_cache[clean_repo]
+            if now - ts < 300:  # 5 min cache
+                return cached_ctx
+
+        url = f"{self.base_url}/repos/{clean_repo}/contents"
+        context: Dict[str, Any] = {
+            "verified_files": [],
+            "contributing_found": False,
+            "contributing_url": None,
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=8.0) as client:
+                res = await client.get(url, headers=self._get_headers())
+                if res.status_code == 200:
+                    contents = res.json()
+                    if isinstance(contents, list):
+                        names = [item.get("name", "") for item in contents if "name" in item]
+                        # Top-level paths up to 30 entries
+                        context["verified_files"] = names[:30]
+
+                        for item in contents:
+                            item_name = item.get("name", "").lower()
+                            if "contributing" in item_name:
+                                context["contributing_found"] = True
+                                context["contributing_url"] = item.get("html_url")
+                                break
+
+            self._repo_cache[clean_repo] = (now, context)
+            return context
+        except Exception:
+            return context

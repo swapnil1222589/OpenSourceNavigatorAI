@@ -40,6 +40,8 @@ async def search_issues(
     q: str = Query("", description="Search keywords, repository name, or topic"),
     language: Optional[str] = Query(None, description="Programming language filter (e.g., python, typescript)"),
     label: Optional[str] = Query(None, description="Issue label filter (e.g., good first issue, help wanted)"),
+    repo: Optional[str] = Query(None, description="Target repository filter (e.g., fastapi/fastapi)"),
+    page: int = Query(1, ge=1, le=100, description="Page number (1 to 100)"),
     per_page: int = Query(15, ge=1, le=50, description="Results per page (1 to 50)"),
     sort: str = Query("updated", pattern="^(updated|created|comments)$", description="Sort order"),
 ) -> IssueSearchResponse:
@@ -48,6 +50,8 @@ async def search_issues(
         query=q,
         language=language,
         label=label,
+        repo=repo,
+        page=page,
         per_page=per_page,
         sort=sort,
     )
@@ -56,12 +60,14 @@ async def search_issues(
 @router.post(
     "/analyze",
     response_model=AnalysisResult,
-    summary="Analyze GitHub issue using local open-weight AI model",
+    summary="Analyze GitHub issue with repository-aware grounding",
 )
 async def analyze_issue(payload: AnalyzeRequest) -> AnalysisResult:
-    """Analyze an issue's context using Ollama and produce a beginner-friendly structured contribution guide."""
+    """Analyze an issue's context using Ollama, grounded with verified repository layout and tailored to contributor skill level."""
     try:
-        return await ollama_client.analyze_issue(payload)
+        # Fetch repository context (top files and contributing guidelines)
+        repo_context = await github_client.get_repo_context(payload.repository_name)
+        return await ollama_client.analyze_issue(payload, repo_context=repo_context)
     except ConnectionError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

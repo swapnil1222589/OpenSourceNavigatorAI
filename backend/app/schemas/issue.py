@@ -26,6 +26,9 @@ class IssueItem(BaseModel):
 class IssueSearchResponse(BaseModel):
     total_count: int
     items: List[IssueItem]
+    page: int = 1
+    per_page: int = 15
+    total_pages: int = 1
     rate_limited: bool = False
     rate_limit_reset: Optional[int] = None
     message: Optional[str] = None

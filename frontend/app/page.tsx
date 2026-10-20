@@ -19,17 +19,23 @@ import {
 } from '../lib/types';
 import { analyzeIssue, fetchIssues, getHealth } from '../lib/api';
 import {
+  addTaskToSection,
   createPlanFromAnalysis,
   deletePlan,
+  deleteTaskFromSection,
   getStoredPlans,
+  PlanSectionKey,
   savePlan,
   toggleTaskCompletion,
   updatePlanStatus,
 } from '../lib/storage';
-import { Sparkles, Terminal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Terminal } from 'lucide-react';
 
 export default function Home() {
   const [currentTab, setCurrentTab] = useState<NavTab>('discover');
+
+  // Contributor Skill Level Profile
+  const [userSkill, setUserSkill] = useState<string>('Beginner');
 
   // Health
   const [health, setHealth] = useState<HealthStatus | null>(null);
@@ -38,6 +44,8 @@ export default function Home() {
   // Issues
   const [issues, setIssues] = useState<IssueItem[]>([]);
   const [totalCount, setTotalCount] = useState<number>(0);
+  const [page, setPage] = useState<number>(1);
+  const [totalPages, setTotalPages] = useState<number>(1);
   const [issuesLoading, setIssuesLoading] = useState<boolean>(true);
   const [issuesError, setIssuesError] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState<boolean>(false);
@@ -47,6 +55,7 @@ export default function Home() {
   const [query, setQuery] = useState<string>('');
   const [language, setLanguage] = useState<string>('python');
   const [label, setLabel] = useState<string>('good first issue');
+  const [repo, setRepo] = useState<string>('');
   const [perPage, setPerPage] = useState<number>(15);
   const [sort, setSort] = useState<string>('updated');
 
@@ -90,6 +99,8 @@ export default function Home() {
         q: query,
         language: language === 'all' ? undefined : language,
         label: label === 'all' ? undefined : label,
+        repo: repo ? repo : undefined,
+        page: page,
         per_page: perPage,
         sort: sort,
       });
@@ -100,24 +111,28 @@ export default function Home() {
         setIssuesError(res.message || 'GitHub rate limit exceeded.');
         setIssues([]);
         setTotalCount(0);
+        setTotalPages(1);
       } else if (res.message) {
         setIssuesError(res.message);
         setIssues([]);
         setTotalCount(0);
+        setTotalPages(1);
       } else {
         setRateLimited(false);
         setRateLimitReset(null);
         setIssues(res.items);
         setTotalCount(res.total_count);
+        setTotalPages(res.total_pages || 1);
       }
     } catch (e: unknown) {
       setIssuesError(e instanceof Error ? e.message : 'Failed to connect to backend.');
       setIssues([]);
       setTotalCount(0);
+      setTotalPages(1);
     } finally {
       setIssuesLoading(false);
     }
-  }, [query, language, label, perPage, sort]);
+  }, [query, language, label, repo, page, perPage, sort]);
 
   useEffect(() => {
     loadIssues();
@@ -128,12 +143,16 @@ export default function Home() {
     query?: string;
     language?: string;
     label?: string;
+    repo?: string;
     perPage?: number;
     sort?: string;
   }) => {
+    // Reset page to 1 when filters change
+    setPage(1);
     if (filters.query !== undefined) setQuery(filters.query);
     if (filters.language !== undefined) setLanguage(filters.language);
     if (filters.label !== undefined) setLabel(filters.label);
+    if (filters.repo !== undefined) setRepo(filters.repo);
     if (filters.perPage !== undefined) setPerPage(filters.perPage);
     if (filters.sort !== undefined) setSort(filters.sort);
   };
@@ -151,6 +170,7 @@ export default function Home() {
         repository_name: issue.repository_name,
         issue_url: issue.html_url,
         labels: issue.labels.map((l) => l.name),
+        user_skill_level: userSkill,
       });
       setAnalysis(result);
     } catch (e: unknown) {
@@ -182,17 +202,30 @@ export default function Home() {
   // Toggle plan task checklist item
   const handleToggleTask = (
     planId: string,
-    section: keyof Pick<
-      ContributionPlan,
-      | 'preparation_tasks'
-      | 'investigation_tasks'
-      | 'implementation_tasks'
-      | 'testing_tasks'
-      | 'pr_checklist'
-    >,
+    section: PlanSectionKey,
     taskId: string
   ) => {
     const updated = toggleTaskCompletion(planId, section, taskId);
+    setPlans(updated);
+  };
+
+  // Add custom task to plan
+  const handleAddTask = (
+    planId: string,
+    section: PlanSectionKey,
+    text: string
+  ) => {
+    const updated = addTaskToSection(planId, section, text);
+    setPlans(updated);
+  };
+
+  // Delete task from plan
+  const handleDeleteTask = (
+    planId: string,
+    section: PlanSectionKey,
+    taskId: string
+  ) => {
+    const updated = deleteTaskFromSection(planId, section, taskId);
     setPlans(updated);
   };
 
@@ -215,6 +248,8 @@ export default function Home() {
         health={health}
         healthLoading={healthLoading}
         onRefreshHealth={checkSystemHealth}
+        userSkill={userSkill}
+        onSkillChange={setUserSkill}
       />
 
       {/* Main Workspace */}
@@ -255,6 +290,7 @@ export default function Home() {
                 query={query}
                 language={language}
                 label={label}
+                repo={repo}
                 perPage={perPage}
                 sort={sort}
                 onFilterChange={handleFilterChange}
@@ -280,15 +316,43 @@ export default function Home() {
                   ))}
                 </div>
               ) : issues.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {issues.map((issue) => (
-                    <IssueCard
-                      key={issue.id}
-                      issue={issue}
-                      onAnalyze={handleAnalyze}
-                      isAnalyzing={isAnalyzing && activeIssue?.id === issue.id}
-                    />
-                  ))}
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {issues.map((issue) => (
+                      <IssueCard
+                        key={issue.id}
+                        issue={issue}
+                        onAnalyze={handleAnalyze}
+                        isAnalyzing={isAnalyzing && activeIssue?.id === issue.id}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex items-center justify-between border-t border-slate-800/80 pt-4 px-2">
+                    <button
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1 || issuesLoading}
+                      className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <span>Previous</span>
+                    </button>
+
+                    <div className="text-xs text-slate-400">
+                      Page <span className="font-bold text-white">{page}</span> of{' '}
+                      <span className="font-bold text-white">{totalPages}</span>
+                    </div>
+
+                    <button
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages || issuesLoading}
+                      className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                    >
+                      <span>Next</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               ) : (
                 !issuesError && (
@@ -298,7 +362,7 @@ export default function Home() {
                       No issues found
                     </h3>
                     <p className="mt-1 text-xs text-slate-400 max-w-sm mx-auto">
-                      Try broadening your search query or selecting a different programming language.
+                      Try broadening your search query or clearing the repository filter.
                     </p>
                   </div>
                 )
@@ -316,7 +380,7 @@ export default function Home() {
                     <span>AI Issue Analyzer</span>
                   </h1>
                   <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                    In-depth breakdown, difficulty estimation, hypotheses, and strategy generated by local open-weight models.
+                    Grounded breakdown, verified repository targets, and contribution strategy tailored for your skill level.
                   </p>
                 </div>
               </div>
@@ -340,13 +404,15 @@ export default function Home() {
                   My Contribution Plans
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                  Track your preparation, code investigation, testing, and PR checklists.
+                  Customizable checklists, task additions, and 1-click Markdown export for your Pull Requests.
                 </p>
               </div>
 
               <RoadmapView
                 plans={plans}
                 onToggleTask={handleToggleTask}
+                onAddTask={handleAddTask}
+                onDeleteTask={handleDeleteTask}
                 onUpdateStatus={handleUpdateStatus}
                 onDeletePlan={handleDeletePlan}
                 onGoToDiscover={() => setCurrentTab('discover')}

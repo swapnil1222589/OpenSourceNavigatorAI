@@ -13,18 +13,20 @@ def test_build_query_basic():
     assert "fastapi bug" in q
 
 
-def test_build_query_with_language_and_label():
+def test_build_query_with_language_label_and_repo():
     client = GitHubClient()
     q = client.build_query(
         query="memory leak",
         language="python",
         label="good first issue",
+        repo="fastapi/fastapi",
     )
     assert "is:issue" in q
     assert "state:open" in q
     assert "memory leak" in q
     assert "language:python" in q
     assert 'label:"good first issue"' in q
+    assert "repo:fastapi/fastapi" in q
 
 
 def test_build_query_excludes_prs_by_default():
@@ -70,12 +72,13 @@ async def test_search_issues_filters_out_pull_requests():
 
     with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = mock_resp
-        res = await client.search_issues(query="test", per_page=10)
+        res = await client.search_issues(query="test", page=2, per_page=10)
 
         assert len(res.items) == 1
         assert res.items[0].number == 1
         assert res.items[0].title == "Real Issue"
         assert res.items[0].repository_name == "org/repo"
+        assert res.page == 2
         assert res.rate_limited is False
 
 
@@ -112,3 +115,29 @@ async def test_search_issues_timeout_handling():
         assert res.rate_limited is False
         assert "timed out" in res.message.lower()
         assert len(res.items) == 0
+
+
+@pytest.mark.asyncio
+async def test_get_repo_context_success():
+    client = GitHubClient()
+    mock_contents = [
+        {"name": "src", "type": "dir", "html_url": "https://github.com/org/repo/tree/main/src"},
+        {"name": "tests", "type": "dir", "html_url": "https://github.com/org/repo/tree/main/tests"},
+        {"name": "CONTRIBUTING.md", "type": "file", "html_url": "https://github.com/org/repo/blob/main/CONTRIBUTING.md"},
+        {"name": "README.md", "type": "file", "html_url": "https://github.com/org/repo/blob/main/README.md"},
+    ]
+
+    mock_resp = httpx.Response(
+        status_code=200,
+        json=mock_contents,
+        request=httpx.Request("GET", "https://api.github.com/repos/org/repo/contents"),
+    )
+
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_resp
+        context = await client.get_repo_context("org/repo")
+
+        assert "src" in context["verified_files"]
+        assert "tests" in context["verified_files"]
+        assert context["contributing_found"] is True
+        assert "CONTRIBUTING.md" in context["contributing_url"]

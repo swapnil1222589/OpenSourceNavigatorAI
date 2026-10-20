@@ -16,9 +16,9 @@
 Contributing to open source for the first time can be intimidating. Beginners are often overwhelmed by massive codebases, cryptic issue descriptions, and unfamiliar workflows.
 
 **OpenSource Navigator AI** empowers students and first-time contributors by:
-1. **Discovering Real Public GitHub Issues:** Live search filtered by language, topic, and tags (such as `good first issue` and `help wanted`), strictly excluding pull requests.
-2. **Deconstructing Issues with Local Open-Weight AI:** Running local inference via **Ollama** (`deepseek-r1:8b`, `qwen3:4b`, etc.) to generate plain-English summaries, honest contributor difficulty ratings, hypothetical inspection targets, and maintainer clarification questions.
-3. **Generating Actionable Contribution Roadmaps:** Turning AI insights into an interactive, step-by-step checklist (Preparation, Investigation, Implementation, Testing, PR prep) tracked locally in the user's browser.
+1. **Discovering Real Public GitHub Issues:** Live search filtered by language, topic, tags (such as `good first issue` and `help wanted`), and target repository (`owner/repo`), with full page pagination and pull-request exclusion.
+2. **Repository-Aware Open-Weight AI Analysis:** Running local inference via **Ollama** (`deepseek-r1:8b`, `qwen3:4b`, etc.) grounded in real repository layouts. Distinguishes between **Verified Repository Files** and **Hypotheses**, generating plain-English summaries, honest contributor difficulty ratings, and maintainer clarification questions tailored to the contributor's skill level (`Beginner`, `Intermediate`, `Advanced`).
+3. **Customizable Contribution Roadmaps & PR Export:** Turning AI insights into an interactive checklist (Preparation, Investigation, Implementation, Testing, PR prep). Contributors can add custom tasks, delete tasks, and **Export to Markdown** with 1-click to paste directly into GitHub issue comments and PR descriptions!
 4. **Zero Paid APIs or Cloud Lock-in:** 100% functional with local open-weight AI models.
 
 ---
@@ -29,13 +29,13 @@ Contributing to open source for the first time can be intimidating. Beginners ar
 flowchart LR
     Client["Next.js App Router (localhost:3000)"]
     Backend["FastAPI Backend (localhost:8000)"]
-    GitHub["GitHub REST API"]
+    GitHub["GitHub REST API (Search & Contents)"]
     Ollama["Ollama Engine (localhost:11434)"]
     Weights["Open-Weight LLM (Local)"]
 
     Client <-->|"REST API (JSON)"| Backend
-    Backend <-->|"Search Issues & Cache"| GitHub
-    Backend <-->|"Structured Prompt & Chat"| Ollama
+    Backend <-->|"Search Issues & Fetch Repo Tree"| GitHub
+    Backend <-->|"Grounded Structured Chat"| Ollama
     Ollama <-->|"Local Inference"| Weights
 ```
 
@@ -124,17 +124,17 @@ pytest -v
 
 ### Test Coverage
 - **Health Check:** Ensures system status is reported without leaking secrets.
-- **GitHub Client:** Tests query building, label escaping, pull request filtering, rate limit detection, and network timeouts.
-- **Ollama Client:** Tests markdown fence parsing, deep reasoning tag stripping (`<think>...</think>`), schema validation, and offline recovery.
-- **API Endpoints:** Request validation, boundary checks, and error responses.
+- **GitHub Client:** Tests query building (with `repo:` qualifiers), label escaping, pull request filtering, pagination (`page`), repository structure discovery, rate limit detection, and network timeouts.
+- **Ollama Client:** Tests markdown fence parsing, deep reasoning tag stripping (`<think>...</think>`), repository layout grounding, schema validation, and offline recovery.
+- **API Endpoints:** Request validation, pagination boundaries, and error responses.
 
 ---
 
 ## 🛡️ Security & Open-Source Principles
 
 1. **Untrusted Input Handling:** GitHub issues are untrusted third-party text. The backend isolates issue content and ensures the model is not given access to shell execution or automatic git push operations.
-2. **Explicit Hypotheses:** Because the AI model analyzes issue text without downloading entire multi-gigabyte codebases, all file and module suggestions are explicitly labeled as hypotheses.
-3. **Rate-Limit Resilience:** An in-memory cache shields GitHub's API, and polite error banners instruct users how to configure a personal token if unauthenticated limits are reached.
+2. **Explicit Hypotheses & Verification:** The AI distinguishes between confirmed repository files (retrieved safely via GitHub Contents API) and hypothetical paths.
+3. **Rate-Limit Resilience:** In-memory caching shields GitHub's API, and polite error banners instruct users how to configure a personal token if unauthenticated limits are reached.
 
 ---
 
