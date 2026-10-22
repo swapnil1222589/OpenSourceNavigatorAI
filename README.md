@@ -1,42 +1,103 @@
 # 🧭 OpenSource Navigator AI
 
-> **Your AI guide to your first open-source contribution.**  
+> **Explore open source. Understand the code. Make your first contribution.**  
 > *Built for Hacktoberfest Hack Day Pune × NIAT–ADYPU — Best Open-Source AI Project.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
 [![Ollama](https://img.shields.io/badge/AI-Ollama%20(Open--Weight)-purple.svg)](https://ollama.com)
+[![Multi--Agent](https://img.shields.io/badge/Agents-8%20Specialists-teal.svg)](#-8-autonomous-ai-specialist-agents)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20PowerShell-blue.svg)](https://microsoft.com)
 
 ---
 
 ## 🌟 Overview
 
-Contributing to open source for the first time can be intimidating. Beginners are often overwhelmed by massive codebases, cryptic issue descriptions, and unfamiliar workflows.
+Contributing to open source for the first time can be intimidating. Beginners are often overwhelmed by massive codebases, cryptic maintainer jargon, and unfamiliar testing practices.
 
-**OpenSource Navigator AI** empowers students and first-time contributors by:
-1. **Discovering Real Public GitHub Issues:** Live search filtered by language, topic, tags (such as `good first issue` and `help wanted`), and target repository (`owner/repo`), with full page pagination and pull-request exclusion.
-2. **Repository-Aware Open-Weight AI Analysis:** Running local inference via **Ollama** (`deepseek-r1:8b`, `qwen3:4b`, etc.) grounded in real repository layouts. Distinguishes between **Verified Repository Files** and **Hypotheses**, generating plain-English summaries, honest contributor difficulty ratings, and maintainer clarification questions tailored to the contributor's skill level (`Beginner`, `Intermediate`, `Advanced`).
-3. **Customizable Contribution Roadmaps & PR Export:** Turning AI insights into an interactive checklist (Preparation, Investigation, Implementation, Testing, PR prep). Contributors can add custom tasks, delete tasks, and **Export to Markdown** with 1-click to paste directly into GitHub issue comments and PR descriptions!
-4. **Zero Paid APIs or Cloud Lock-in:** 100% functional with local open-weight AI models.
+**OpenSource Navigator AI** empowers students and first-time contributors with a **Spatial Developer Workspace** and an **Autonomous 8-Agent AI System**:
+
+1. **8 Autonomous AI Specialist Agents:** An interactive 2D orbital constellation coordinating 8 typed specialist agents (Discovery, Understanding, Repo Context, Skill Matching, Planning, Test Strategy, PR Readiness, Orchestrator) over local open-weight models.
+2. **Spatial UI & Quick Command Palette:** Dark developer HUD, responsive layouts, live agent telemetry pulses, and instant keyboard command palette (`Ctrl+K` / `⌘K`).
+3. **Repository Context Explorer:** Live file tree inspector for any target GitHub repo, displaying verified files, test suites, and contributor guidelines vs. AI hypotheses.
+4. **Discover Real Public GitHub Issues:** Live search filtered by language, topic, tags (`good first issue`, `help wanted`), and target repository (`owner/repo`), excluding pull requests and with pagination.
+5. **Customizable Contribution Roadmaps & PR Export:** Converts AI insights into interactive checklists. Contributors can add custom tasks, track progress, and **Export to Markdown** with 1-click for GitHub PR descriptions!
+6. **Zero Paid APIs or Cloud Lock-in:** 100% functional with local open-weight AI models (`deepseek-r1:8b`, `qwen3:4b`).
+
+---
+
+## 🤖 8 Autonomous AI Specialist Agents
+
+| Agent Name | Role | Primary Objective | Key Outputs |
+| :--- | :--- | :--- | :--- |
+| **Orchestrator** | `orchestrator` | Coordinates pipeline, checks cancellation, preserves partial outputs | Consolidated workflow intelligence |
+| **Issue Discovery Agent** | `discovery` | Curates good-first-issues and student tasks from GitHub REST API | Issue items, difficulty rating, recommended labels |
+| **Issue Understanding Agent** | `understanding` | Translates cryptic maintainer jargon into plain-English explanations | Summary, root problem breakdown, expected outcome |
+| **Repository Context Agent** | `repo_context` | Inspects verified file trees, test suites, and contributor guidelines | Verified files, contributing guide URL, test directories |
+| **Skill Matching Agent** | `skill_matching` | Maps required languages, frameworks, prerequisites, and learning curves | Required skills, prerequisite concepts, difficulty estimate |
+| **Contribution Planning Agent** | `planning` | Builds step-by-step investigation, code, and debugging milestones | Preparation steps, implementation steps, common pitfalls |
+| **Test Strategy Agent** | `test_strategy` | Formulates reproduction steps, regression cases, and test assertions | Reproduction steps, test file suggestions, assertions |
+| **PR Readiness Agent** | `pr_readiness` | Constructs commit guidelines, PR descriptions, and sanity checklists | PR title, draft description, checklist items |
 
 ---
 
 ## 🏗️ Architecture
 
 ```mermaid
-flowchart LR
-    Client["Next.js App Router (localhost:3000)"]
-    Backend["FastAPI Backend (localhost:8000)"]
-    GitHub["GitHub REST API (Search & Contents)"]
-    Ollama["Ollama Engine (localhost:11434)"]
-    Weights["Open-Weight LLM (Local)"]
+flowchart TD
+    subgraph Client ["Client Browser (Spatial UI - localhost:3000)"]
+        UI["Next.js App Router UI (TypeScript + Tailwind CSS)"]
+        Constellation["Interactive Agent Constellation (2D Canvas / HUD)"]
+        RepoExplorer["Spatial Repository Explorer & Code Inspector"]
+        Palette["Spatial Command Palette (Ctrl+K)"]
+        LocalStorage["Browser LocalStorage (Contribution Plans & Roadmaps)"]
+        SkillProfile["Contributor Profile (Beginner / Intermediate / Advanced)"]
+    end
 
-    Client <-->|"REST API (JSON)"| Backend
-    Backend <-->|"Search Issues & Fetch Repo Tree"| GitHub
-    Backend <-->|"Grounded Structured Chat"| Ollama
-    Ollama <-->|"Local Inference"| Weights
+    subgraph Backend ["Backend API Service (FastAPI - localhost:8000)"]
+        FastAPI["FastAPI Application"]
+        AgentRouter["Agent & Repository Router (/api/v1/agents, /api/v1/repository)"]
+        CoreRouter["Core Router (/api/v1/issues, /api/v1/analyze)"]
+        TaskStore["Bounded In-Memory TaskStore (Runs, Telemetry, Cancellation)"]
+        Orchestrator["Agent Orchestrator Nucleus"]
+        GHClient["GitHub REST API Client (Query Builder + Cache + File Inspector)"]
+        OllamaClient["Ollama Client (Prompt Sanitizer + DeepSeek-R1 Parser)"]
+    end
+
+    subgraph Agents ["8 Autonomous AI Specialist Agents"]
+        A1["1. Discovery"]
+        A2["2. Understanding"]
+        A3["3. Repo Context"]
+        A4["4. Skill Matching"]
+        A5["5. Planning"]
+        A6["6. Test Strategy"]
+        A7["7. PR Readiness"]
+        A8["8. Orchestrator"]
+    end
+
+    subgraph External ["External Services & Local Open-Weight Inference"]
+        GitHubAPI["GitHub REST API (/search/issues, /contents)"]
+        Ollama["Local Ollama Server (localhost:11434)"]
+        Model["Open-Weight LLM (deepseek-r1:8b)"]
+    end
+
+    UI <-->|"HTTP / JSON (CORS Restricted)"| FastAPI
+    Palette --> UI
+    Constellation --> UI
+    RepoExplorer --> UI
+    UI <-->|"Persist Custom Roadmaps"| LocalStorage
+    SkillProfile --> UI
+    FastAPI --> AgentRouter
+    FastAPI --> CoreRouter
+    AgentRouter --> Orchestrator
+    AgentRouter --> TaskStore
+    Orchestrator --> Agents
+    Agents --> GHClient
+    Agents --> OllamaClient
+    GHClient <-->|"Search Issues, Fetch Trees, Read Files"| GitHubAPI
+    OllamaClient <-->|"Grounded Local Inference"| Ollama
+    Ollama <-->|"GPU / CPU Weights"| Model
 ```
 
 ---
@@ -47,23 +108,15 @@ flowchart LR
 - **Node.js** v18+ (tested on Node v24)
 - **Python** 3.10+ (tested on Python 3.10.11)
 - **Git**
-- **Ollama** ([Download from Ollama.com](https://ollama.com))
+- **Ollama** ([Download from Ollama.com](https://ollama.com)) with `deepseek-r1:8b` or `qwen3:4b`
 
 ### 1. Run Automated Setup
-Open Windows PowerShell in the project directory and run:
+Open Windows PowerShell in the project directory:
 
 ```powershell
 cd D:\OpenSourceNavigatorAI
 .\scripts\setup.ps1
 ```
-
-The setup script automatically:
-- Verifies Python, Node.js, npm, Git, and Ollama.
-- Inspects disk space and explains model storage options.
-- Creates `backend\.env` and `frontend\.env.local` if missing.
-- Sets up the Python virtual environment in `backend\.venv` and installs dependencies.
-- Installs frontend npm packages.
-- Checks local Ollama connectivity.
 
 ### 2. Launch Services
 Start both backend (port 8000) and frontend (port 3000):
@@ -73,15 +126,19 @@ Start both backend (port 8000) and frontend (port 3000):
 ```
 
 Access the application:
-- 🌐 **Frontend Dashboard:** [http://localhost:3000](http://localhost:3000)
+- 🌐 **Spatial Frontend Dashboard:** [http://localhost:3000](http://localhost:3000)
 - ⚙️ **FastAPI Swagger Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
 - 🩺 **Health Endpoint:** [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 
-### 3. Run Smoke Tests
-Verify all endpoints and integrations:
-
+### 3. Run Automated Tests
 ```powershell
-.\scripts\smoke-test.ps1
+# Backend automated tests (24 passed)
+cd D:\OpenSourceNavigatorAI\backend
+.\.venv\Scripts\python -m pytest -v
+
+# Frontend production build verification
+cd D:\OpenSourceNavigatorAI\frontend
+npm run build
 ```
 
 ### 4. Stop Services
@@ -98,56 +155,30 @@ When finished:
 ### Backend (`backend/.env`)
 | Variable | Default | Description |
 |---|---|---|
-| `GITHUB_TOKEN` | *(optional)* | GitHub Personal Access Token to raise rate limits from 60 to 5,000 req/hr. |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | URL of the local Ollama daemon. |
-| `OLLAMA_MODEL` | `deepseek-r1:8b` | Configurable open-weight model name (e.g. `qwen3:4b`, `deepseek-r1:8b`). |
-| `FRONTEND_ORIGIN` | `http://localhost:3000` | Allowed CORS origin for frontend requests. |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama HTTP API endpoint |
+| `OLLAMA_MODEL` | `deepseek-r1:8b` | Local model used for inference |
+| `OLLAMA_TIMEOUT_SECONDS` | `120.0` | Timeout threshold for inference |
+| `GITHUB_TOKEN` | *(empty / optional)* | Personal access token for 5,000 req/h rate limits |
+| `CORS_ORIGINS` | `http://localhost:3000` | Allowed client origins |
 
 ### Frontend (`frontend/.env.local`)
 | Variable | Default | Description |
 |---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Points to the FastAPI backend API. |
-
-> 🔒 **Security Notice:** Never commit `.env` or `.env.local` files to version control. They are strictly ignored by `.gitignore`.
+| `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Target FastAPI backend URL |
 
 ---
 
-## 🧪 Testing
+## 🏆 Hackathon Submission Notes
 
-Automated unit and integration tests are located in `backend/tests`:
-
-```powershell
-cd D:\OpenSourceNavigatorAI\backend
-.\.venv\Scripts\Activate.ps1
-pytest -v
-```
-
-### Test Coverage
-- **Health Check:** Ensures system status is reported without leaking secrets.
-- **GitHub Client:** Tests query building (with `repo:` qualifiers), label escaping, pull request filtering, pagination (`page`), repository structure discovery, rate limit detection, and network timeouts.
-- **Ollama Client:** Tests markdown fence parsing, deep reasoning tag stripping (`<think>...</think>`), repository layout grounding, schema validation, and offline recovery.
-- **API Endpoints:** Request validation, pagination boundaries, and error responses.
+- **Event:** Hacktoberfest Hack Day Pune × NIAT–ADYPU
+- **Prize Category:** Best Open-Source AI Project
+- **Documentation:**
+  - 📐 [System Architecture](docs/architecture.md)
+  - 🤖 [Multi-Agent Workflow Specification](docs/agent-workflow.md)
+  - 🎬 [Judge Live Demo Script](docs/demo-script.md)
 
 ---
 
-## 🛡️ Security & Open-Source Principles
+## 📜 License
 
-1. **Untrusted Input Handling:** GitHub issues are untrusted third-party text. The backend isolates issue content and ensures the model is not given access to shell execution or automatic git push operations.
-2. **Explicit Hypotheses & Verification:** The AI distinguishes between confirmed repository files (retrieved safely via GitHub Contents API) and hypothetical paths.
-3. **Rate-Limit Resilience:** In-memory caching shields GitHub's API, and polite error banners instruct users how to configure a personal token if unauthenticated limits are reached.
-
----
-
-## 📦 Model Attribution & Licenses
-
-- **Ollama:** Open-source local inference engine ([MIT License](https://github.com/ollama/ollama/blob/main/LICENSE)).
-- **Supported Models:** 
-  - `deepseek-r1:8b` (DeepSeek-AI open weights)
-  - `qwen3:4b` / `qwen2.5:3b` (Alibaba Cloud open weights)
-- **Application Code:** [MIT License](LICENSE).
-
----
-
-## 🗺️ Demo Script
-
-A detailed 3-minute hackathon presentation script is provided in [`docs/demo-script.md`](docs/demo-script.md).
+MIT License. See [LICENSE](LICENSE) for details.

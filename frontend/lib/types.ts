@@ -100,3 +100,97 @@ export interface HealthStatus {
     token_configured: boolean;
   };
 }
+
+// ==========================================
+// Multi-Agent System Types
+// ==========================================
+
+export type AgentRole =
+  | 'discovery'
+  | 'understanding'
+  | 'repo_context'
+  | 'skill_matching'
+  | 'planning'
+  | 'test_strategy'
+  | 'pr_readiness'
+  | 'orchestrator';
+
+export type AgentRunStatus = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
+
+export interface AgentMetadata {
+  name: string;
+  role: AgentRole;
+  display_name: string;
+  description: string;
+  capabilities: string[];
+  system_prompt_snippet: string;
+  input_schema_name: string;
+  output_schema_name: string;
+  model: string;
+}
+
+export interface AgentExecutionRecord {
+  agent_name: string;
+  role: string;
+  status: AgentRunStatus;
+  started_at?: string | null;
+  completed_at?: string | null;
+  duration_ms?: number | null;
+  error?: string | null;
+  input_summary?: Record<string, unknown> | null;
+  output_data?: Record<string, unknown> | null;
+}
+
+export interface WorkflowRunRecord {
+  run_id: string;
+  created_at: string;
+  status: AgentRunStatus;
+  agent_filter?: string | null;
+  issue_title?: string | null;
+  repository_name?: string | null;
+  model_used: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  total_duration_ms?: number | null;
+  error?: string | null;
+  agent_executions: AgentExecutionRecord[];
+  final_result?: Record<string, unknown> | null;
+}
+
+export interface WorkflowRunRequest {
+  agent_name?: string | null;
+  issue_title?: string | null;
+  issue_body?: string | null;
+  repository_name?: string | null;
+  issue_url?: string | null;
+  labels?: string[];
+  user_skill_level?: string;
+  user_skills_list?: string[];
+  search_query?: string;
+  search_language?: string;
+  search_label?: string;
+}
+
+export interface WorkflowRunResponse {
+  run_id: string;
+  status: AgentRunStatus;
+  message: string;
+  record: WorkflowRunRecord;
+}
+
+export interface RepoFileExploreResponse {
+  repository_name: string;
+  files_count: number;
+  files: string[];
+  contributing_file?: string | null;
+  readme_file?: string | null;
+  test_directories: string[];
+}
+
+export interface RepoFileContentResponse {
+  repository_name: string;
+  file_path: string;
+  size_bytes: number;
+  is_truncated: boolean;
+  content: string;
+}

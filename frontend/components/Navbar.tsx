@@ -1,7 +1,17 @@
 'use client';
 
 import React from 'react';
-import { Compass, Sparkles, Cpu, GitBranch, CheckCircle2, AlertCircle, GraduationCap } from 'lucide-react';
+import {
+  Compass,
+  Sparkles,
+  Cpu,
+  GitBranch,
+  CheckCircle2,
+  AlertCircle,
+  GraduationCap,
+  Command,
+  Bot,
+} from 'lucide-react';
 import { HealthStatus } from '../lib/types';
 
 interface NavbarProps {
@@ -10,6 +20,7 @@ interface NavbarProps {
   onRefreshHealth: () => void;
   userSkill: string;
   onSkillChange: (skill: string) => void;
+  onOpenCommandPalette: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -18,6 +29,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRefreshHealth,
   userSkill,
   onSkillChange,
+  onOpenCommandPalette,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-800 bg-slate-950/80 backdrop-blur-md">
@@ -33,26 +45,38 @@ export const Navbar: React.FC<NavbarProps> = ({
                 OpenSource Navigator <span className="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">AI</span>
               </span>
               <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
-                Hack Day Pune
+                Spatial Edition
               </span>
             </div>
             <p className="hidden text-xs text-slate-400 sm:block">
-              Your AI guide to your first open-source contribution
+              Explore open source. Understand the code. Make your first contribution.
             </p>
           </div>
         </div>
 
+        {/* Center: Command Palette Trigger Button */}
+        <button
+          onClick={onOpenCommandPalette}
+          className="hidden md:flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 text-xs text-slate-400 hover:border-slate-700 hover:text-slate-200 transition-all cursor-pointer shadow-sm"
+        >
+          <Command className="h-3.5 w-3.5 text-emerald-400" />
+          <span>Quick actions &amp; search...</span>
+          <kbd className="rounded bg-slate-800 border border-slate-700 px-1.5 py-0.5 text-[10px] font-mono text-slate-400">
+            Ctrl+K
+          </kbd>
+        </button>
+
         {/* Right side controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Skill Profile Selector */}
-          <div className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-2.5 py-1.5 text-xs text-slate-300">
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-800 bg-slate-900/90 px-2.5 py-1.5 text-xs text-slate-300">
             <GraduationCap className="h-3.5 w-3.5 text-emerald-400" />
             <span className="hidden sm:inline text-slate-400">Skill:</span>
             <select
               value={userSkill}
               onChange={(e) => onSkillChange(e.target.value)}
               className="bg-transparent text-xs font-semibold text-emerald-400 focus:outline-none cursor-pointer"
-              title="Tailor AI explanations and difficulty assessment to your skill level"
+              title="Tailor AI explanations, test strategies, and PR readiness to your skill level"
             >
               <option value="Beginner" className="bg-slate-900 text-slate-200">Beginner</option>
               <option value="Intermediate" className="bg-slate-900 text-slate-200">Intermediate</option>
@@ -64,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             onClick={onRefreshHealth}
             title="Click to refresh system health status"
-            className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-700 hover:bg-slate-800/80 transition-all cursor-pointer"
+            className="flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300 hover:border-slate-700 hover:bg-slate-800/80 transition-all cursor-pointer"
           >
             <Cpu className="h-3.5 w-3.5 text-purple-400" />
             <span className="hidden md:inline font-mono">Ollama:</span>
@@ -85,13 +109,19 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
+          {/* Multi-Agent Indicator */}
+          <div className="hidden lg:flex items-center gap-1.5 rounded-xl border border-emerald-500/20 bg-emerald-950/20 px-2.5 py-1.5 text-xs text-emerald-300 font-mono">
+            <Bot className="h-3.5 w-3.5 text-emerald-400" />
+            <span>8 Agents Ready</span>
+          </div>
+
           {/* GitHub API Status Pill */}
-          <div className="hidden sm:flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300">
+          <div className="hidden sm:flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/90 px-3 py-1.5 text-xs text-slate-300">
             <GitBranch className="h-3.5 w-3.5 text-slate-400" />
             <span>GitHub:</span>
             {health?.github.token_configured ? (
               <span className="flex items-center gap-1 text-emerald-400 font-medium">
-                <CheckCircle2 className="h-3 w-3" /> Auth (5k req/h)
+                <CheckCircle2 className="h-3 w-3" /> Auth (5k/h)
               </span>
             ) : (
               <span className="flex items-center gap-1 text-amber-400" title="Unauthenticated limit: 60 req/h">
@@ -99,17 +129,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               </span>
             )}
           </div>
-
-          {/* Source badge */}
-          <a
-            href="https://github.com/swapnil1222589/OpenSourceNavigatorAI"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden lg:flex items-center gap-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/30 px-3 py-1.5 text-xs font-medium text-emerald-300 hover:bg-emerald-600/30 transition-all"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Open-Weight AI</span>
-          </a>
         </div>
       </div>
     </header>

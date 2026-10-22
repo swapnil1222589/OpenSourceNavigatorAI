@@ -8,6 +8,10 @@ import { IssueCard } from '../components/IssueCard';
 import { AnalyzerView } from '../components/AnalyzerView';
 import { RoadmapView } from '../components/RoadmapView';
 import { AboutView } from '../components/AboutView';
+import { AgentStudio } from '../components/AgentStudio';
+import { RepositoryExplorer } from '../components/RepositoryExplorer';
+import { ActivityView } from '../components/ActivityView';
+import { SpatialCommandPalette } from '../components/SpatialCommandPalette';
 import { IssueCardSkeleton } from '../components/LoadingSkeleton';
 import { ErrorBanner } from '../components/ErrorBanner';
 import {
@@ -33,6 +37,7 @@ import { ChevronLeft, ChevronRight, Sparkles, Terminal } from 'lucide-react';
 
 export default function Home() {
   const [currentTab, setCurrentTab] = useState<NavTab>('discover');
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
 
   // Contributor Skill Level Profile
   const [userSkill, setUserSkill] = useState<string>('Beginner');
@@ -65,12 +70,30 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
+  // Agent Studio cross-tab context
+  const [studioPrefilledIssue, setStudioPrefilledIssue] = useState<IssueItem | null>(null);
+
+  // Repository Explorer target
+  const [repoExplorerTarget, setRepoExplorerTarget] = useState<string>('pallets/flask');
+
   // Contribution Plans
   const [plans, setPlans] = useState<ContributionPlan[]>([]);
 
   // Load plans from local storage
   useEffect(() => {
     setPlans(getStoredPlans());
+  }, []);
+
+  // Keyboard shortcut listener for Ctrl+K / Cmd+K
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
   // Fetch Health
@@ -147,7 +170,6 @@ export default function Home() {
     perPage?: number;
     sort?: string;
   }) => {
-    // Reset page to 1 when filters change
     setPage(1);
     if (filters.query !== undefined) setQuery(filters.query);
     if (filters.language !== undefined) setLanguage(filters.language);
@@ -182,6 +204,18 @@ export default function Home() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  // Send issue to Agent Studio constellation
+  const handleSendToStudio = (issue: IssueItem) => {
+    setStudioPrefilledIssue(issue);
+    setCurrentTab('agents');
+  };
+
+  // Jump to repo explorer
+  const handleJumpToRepoExplorer = (targetRepo: string) => {
+    setRepoExplorerTarget(targetRepo);
+    setCurrentTab('repo');
   };
 
   // Retry active analysis
@@ -242,7 +276,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0e17] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300">
+    <div className="min-h-screen bg-[#070b12] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-300">
       {/* Top Navigation */}
       <Navbar
         health={health}
@@ -250,6 +284,7 @@ export default function Home() {
         onRefreshHealth={checkSystemHealth}
         userSkill={userSkill}
         onSkillChange={setUserSkill}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
       />
 
       {/* Main Workspace */}
@@ -267,7 +302,6 @@ export default function Home() {
           {/* TAB 1: DISCOVER ISSUES */}
           {currentTab === 'discover' && (
             <div className="space-y-6 max-w-7xl mx-auto">
-              {/* Header Title */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h1 className="text-2xl font-black text-white tracking-tight">
@@ -323,6 +357,7 @@ export default function Home() {
                         key={issue.id}
                         issue={issue}
                         onAnalyze={handleAnalyze}
+                        onSendToStudio={handleSendToStudio}
                         isAnalyzing={isAnalyzing && activeIssue?.id === issue.id}
                       />
                     ))}
@@ -370,7 +405,32 @@ export default function Home() {
             </div>
           )}
 
-          {/* TAB 2: AI ISSUE ANALYZER */}
+          {/* TAB 2: AGENT STUDIO (NEW) */}
+          {currentTab === 'agents' && (
+            <div className="max-w-7xl mx-auto">
+              <AgentStudio
+                prefilledIssue={studioPrefilledIssue}
+                userSkill={userSkill}
+                onJumpToRepoExplorer={handleJumpToRepoExplorer}
+                onPlanCreated={() => setCurrentTab('plans')}
+              />
+            </div>
+          )}
+
+          {/* TAB 3: REPO EXPLORER (NEW) */}
+          {currentTab === 'repo' && (
+            <div className="max-w-7xl mx-auto">
+              <RepositoryExplorer
+                initialRepo={repoExplorerTarget}
+                onSelectIssueDiscover={(r) => {
+                  setRepo(r);
+                  setCurrentTab('discover');
+                }}
+              />
+            </div>
+          )}
+
+          {/* TAB 4: AI ISSUE ANALYZER */}
           {currentTab === 'analyzer' && (
             <div className="max-w-6xl mx-auto">
               <div className="mb-6 flex items-center justify-between">
@@ -396,7 +456,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* TAB 3: CONTRIBUTION PLANS */}
+          {/* TAB 5: CONTRIBUTION PLANS */}
           {currentTab === 'plans' && (
             <div className="max-w-5xl mx-auto">
               <div className="mb-6">
@@ -420,10 +480,26 @@ export default function Home() {
             </div>
           )}
 
-          {/* TAB 4: ABOUT THE PROJECT */}
+          {/* TAB 6: AGENT ACTIVITY (NEW) */}
+          {currentTab === 'activity' && (
+            <div className="max-w-6xl mx-auto">
+              <ActivityView onGoToStudio={() => setCurrentTab('agents')} />
+            </div>
+          )}
+
+          {/* TAB 7: ABOUT THE PROJECT */}
           {currentTab === 'about' && <AboutView />}
         </main>
       </div>
+
+      {/* Spatial Command Palette Modal */}
+      <SpatialCommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onNavigate={(tab) => setCurrentTab(tab)}
+        onSelectSkill={(skill) => setUserSkill(skill)}
+        onTriggerQuickAgentRun={() => setCurrentTab('agents')}
+      />
     </div>
   );
 }

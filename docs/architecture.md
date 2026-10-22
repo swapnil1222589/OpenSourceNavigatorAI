@@ -1,6 +1,6 @@
 # OpenSource Navigator AI — System Architecture
 
-**OpenSource Navigator AI** is a full-stack, open-weight AI web application engineered for students and beginner developers making their first open-source software contributions.
+**OpenSource Navigator AI** is a spatial developer workspace and multi-agent AI system engineered for students and beginner developers making their first open-source software contributions.
 
 ---
 
@@ -8,36 +8,58 @@
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Browser (localhost:3000)"]
+    subgraph Client ["Client Browser (Spatial UI - localhost:3000)"]
         UI["Next.js App Router UI (TypeScript + Tailwind CSS)"]
-        LocalStorage["Browser LocalStorage (Contribution Plans & Checklists)"]
+        Constellation["Interactive Agent Constellation (2D Canvas / HUD)"]
+        RepoExplorer["Spatial Repository Explorer & Code Inspector"]
+        Palette["Spatial Command Palette (Ctrl+K)"]
+        LocalStorage["Browser LocalStorage (Contribution Plans & Roadmaps)"]
         SkillProfile["Contributor Profile (Beginner / Intermediate / Advanced)"]
     end
 
-    subgraph Backend ["Backend API Service (localhost:8000)"]
+    subgraph Backend ["Backend API Service (FastAPI - localhost:8000)"]
         FastAPI["FastAPI Application"]
-        Router["API v1 Router (/api/v1)"]
-        GHClient["GitHub REST API Client (Query Builder + Cache + Repo Context)"]
-        OllamaClient["Ollama Client (Prompt Sanitizer + Grounded JSON Parser)"]
+        AgentRouter["Agent & Repository Router (/api/v1/agents, /api/v1/repository)"]
+        CoreRouter["Core Router (/api/v1/issues, /api/v1/analyze)"]
+        TaskStore["Bounded In-Memory TaskStore (Runs, Telemetry, Cancellation)"]
+        Orchestrator["Agent Orchestrator Nucleus"]
+        GHClient["GitHub REST API Client (Query Builder + Cache + File Inspector)"]
+        OllamaClient["Ollama Client (Prompt Sanitizer + DeepSeek-R1 Parser)"]
+    end
+
+    subgraph Agents ["8 Autonomous AI Specialist Agents"]
+        A1["1. Issue Discovery Agent"]
+        A2["2. Issue Understanding Agent"]
+        A3["3. Repository Context Agent"]
+        A4["4. Skill Matching Agent"]
+        A5["5. Contribution Planning Agent"]
+        A6["6. Test Strategy Agent"]
+        A7["7. PR Readiness Agent"]
+        A8["8. Orchestrator Nucleus"]
     end
 
     subgraph External ["External Services & Local Open-Weight Inference"]
-        GitHubSearch["GitHub Search API (/search/issues)"]
-        GitHubRepo["GitHub Contents API (/repos/{owner}/{repo}/contents)"]
+        GitHubAPI["GitHub REST API (/search/issues, /contents)"]
         Ollama["Local Ollama Server (localhost:11434)"]
-        Model["Open-Weight LLM (e.g. Qwen / DeepSeek)"]
+        Model["Open-Weight LLM (deepseek-r1:8b)"]
     end
 
     UI <-->|"HTTP / JSON (CORS Restricted)"| FastAPI
-    UI <-->|"Persist Custom Checklists"| LocalStorage
+    Palette --> UI
+    Constellation --> UI
+    RepoExplorer --> UI
+    UI <-->|"Persist Custom Roadmaps"| LocalStorage
     SkillProfile --> UI
-    FastAPI --> Router
-    Router --> GHClient
-    Router --> OllamaClient
-    GHClient <-->|"Search Issues with Filters & Pagination"| GitHubSearch
-    GHClient <-->|"Fetch Repo File Tree & CONTRIBUTING.md"| GitHubRepo
-    OllamaClient <-->|"Grounded Inference with Verified Files"| Ollama
-    Ollama <-->|"Local GPU/CPU Inference"| Model
+    FastAPI --> AgentRouter
+    FastAPI --> CoreRouter
+    AgentRouter --> Orchestrator
+    AgentRouter --> TaskStore
+    Orchestrator --> Agents
+    Agents --> GHClient
+    Agents --> OllamaClient
+    GHClient <-->|"Search Issues, Fetch Trees, Read Files"| GitHubAPI
+    OllamaClient <-->|"Grounded Local Inference"| Ollama
+    Ollama <-->|"GPU / CPU Weights"| Model
 ```
 
 ---
@@ -46,37 +68,32 @@ flowchart TD
 
 ### Frontend (`/frontend`)
 - **Framework:** Next.js 16 with App Router, React 19, TypeScript.
-- **Styling:** Tailwind CSS (Dark developer palette, responsive layout, fluid typography).
+- **Styling:** Tailwind CSS (Dark spatial developer palette, responsive layout, subtle gradients).
 - **Icons:** Lucide React icons.
-- **State Management & Persistence:**
-  - Dynamic tab navigation (`Discover Issues`, `AI Issue Analyzer`, `My Contribution Plans`, `About`).
-  - Search debouncing (500ms) across keywords and specific repositories (`owner/repo`).
-  - Page pagination bar (Previous, Next, Page jumping).
-  - Contributor skill level selector (`Beginner`, `Intermediate`, `Advanced`).
-  - In-app issue details expander for quick inline reading.
-  - Client-side persistence using `localStorage` for contribution checklists.
-  - Custom task additions, task deletions, and 1-click **Markdown Export** (`Copy MD` and `Download .md`).
+- **Key Modules:**
+  - `components/AgentConstellation.tsx`: Interactive 2D constellation map displaying the 8 specialist agents with real-time status pulses (`idle`, `running`, `completed`, `failed`).
+  - `components/AgentStudio.tsx`: Full pipeline orchestration, single-agent runner, live telemetry, and agent inspector drawer with typed I/O schemas and output payload JSON copy.
+  - `components/RepositoryExplorer.tsx`: Tree explorer for any target repository, live file content viewer with size limits, test directory indicators, and distinction between verified files and AI hypotheses.
+  - `components/SpatialCommandPalette.tsx`: Global keyboard shortcut (`Ctrl+K` or `⌘K`) for rapid navigation and action dispatching.
+  - `components/ActivityView.tsx`: Real-time workflow telemetry feed with durations, error traces, and cancellation/retry actions.
+  - `components/RoadmapView.tsx`: Spatial timeline, custom task additions/deletions, and 1-click Markdown export (`Copy MD` and `Download .md`).
+  - `lib/storage.ts`: Safe client-side persistence for contribution checklists.
 
 ### Backend (`/backend`)
 - **Framework:** Python 3.10+ with FastAPI.
 - **Data Validation:** Pydantic models for strict payload validation.
-- **Asynchronous HTTP Client:** HTTPX with connection pooling and timeouts.
-- **Testing:** Pytest with asynchronous test suites and mocks.
+- **Concurrency & State:** Thread-safe, bounded in-memory `TaskStore` with cancellation token support and background worker execution.
+- **Testing:** Pytest with 24 automated unit tests covering all routes, agents, schemas, and resilience fallbacks.
 
-### GitHub Integration (`app.clients.github_client`)
-- Interacts with GitHub Issue Search endpoint (`https://api.github.com/search/issues`).
-- Statically forces `is:issue` and filters out pull requests (`"pull_request"` objects).
-- Supports filtering by repository (`repo:owner/name`), language, label, keywords, and pagination (`page`, `per_page`).
-- **Repository-Aware Context Retrieval:** Inspects repository root directory (`GET /repos/{owner}/{repo}/contents`) to fetch top-level directories, files, and `CONTRIBUTING.md` links.
-- In-memory cache with 120-second TTL to guard against redundant API calls.
-- Graceful rate-limit detection with reset countdown and token configuration instructions.
-
-### Open-Weight AI Inference (`app.clients.ollama_client`)
-- Communicates directly with local Ollama HTTP API (`http://localhost:11434`).
-- Uses zero paid cloud APIs: runs 100% locally on open-weight models (`deepseek-r1:8b`, `qwen3:4b`, etc.).
-- Robust JSON extraction handling `<think>` reasoning tags and markdown code blocks.
-- **Repository-Grounded Validation:** Distinguishes between **Verified Repository Files** (confirmed to exist in repository layout) and **Hypotheses** (unverified file paths).
-- Tailors explanations and investigation roadmaps to the contributor's self-assessed skill level.
+### Specialist AI Agents (`app.agents`)
+- **Orchestrator (`orchestrator`):** Coordinates pipeline execution, passes outputs downstream, checks cancellation state.
+- **Issue Discovery (`issue_discovery`):** Curates good-first-issues and student tasks from GitHub.
+- **Issue Understanding (`issue_understanding`):** Breaks down cryptic maintainer jargon into plain English.
+- **Repository Context (`repository_context`):** Retrieves verified file trees and contributor guides (`CONTRIBUTING.md`).
+- **Skill Matching (`skill_matching`):** Maps prerequisites, required skills, and matches contributor proficiency.
+- **Contribution Planning (`contribution_planning`):** Synthesizes investigation, implementation, and pitfall checklists.
+- **Test Strategy (`test_strategy`):** Outlines reproduction steps, test assertions, and test directory recommendations.
+- **PR Readiness (`pr_readiness`):** Generates PR descriptions, branch naming guidelines, and pre-flight checklists.
 
 ---
 

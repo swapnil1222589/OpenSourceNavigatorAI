@@ -1,15 +1,32 @@
 'use client';
 
 import React from 'react';
-import { Search, BrainCircuit, ListTodo, Info, ChevronRight } from 'lucide-react';
+import {
+  Search,
+  BrainCircuit,
+  Bot,
+  FolderGit2,
+  ListTodo,
+  Activity,
+  Info,
+  ChevronRight,
+} from 'lucide-react';
 
-export type NavTab = 'discover' | 'analyzer' | 'plans' | 'about';
+export type NavTab =
+  | 'discover'
+  | 'agents'
+  | 'repo'
+  | 'analyzer'
+  | 'plans'
+  | 'activity'
+  | 'about';
 
 interface SidebarProps {
   currentTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   plansCount: number;
   hasActiveAnalysis: boolean;
+  activeAgentsCount?: number;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -26,20 +43,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
       description: 'Search curated open-source tasks',
     },
     {
+      id: 'agents' as NavTab,
+      label: 'Agent Studio',
+      icon: Bot,
+      description: '8 autonomous AI specialists constellation',
+      badge: '8 Agents',
+      badgeColor: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    },
+    {
+      id: 'repo' as NavTab,
+      label: 'Repo Explorer',
+      icon: FolderGit2,
+      description: 'Inspect verified code & guidelines',
+    },
+    {
       id: 'analyzer' as NavTab,
       label: 'AI Issue Analyzer',
       icon: BrainCircuit,
-      description: 'Plain-English breakdown & strategy',
+      description: 'Deep breakdown & contribution strategy',
       badge: hasActiveAnalysis ? 'Active' : undefined,
       badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
     },
     {
       id: 'plans' as NavTab,
-      label: 'My Contribution Plans',
+      label: 'Contribution Plans',
       icon: ListTodo,
-      description: 'Checklists & progress roadmap',
+      description: 'Personalized checklists & PR roadmap',
       badge: plansCount > 0 ? plansCount.toString() : undefined,
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    },
+    {
+      id: 'activity' as NavTab,
+      label: 'Agent Activity',
+      icon: Activity,
+      description: 'Live task telemetry & status logs',
     },
     {
       id: 'about' as NavTab,
@@ -100,17 +137,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* Hackathon Callout Card */}
-      <div className="hidden md:block mt-8 rounded-xl border border-emerald-500/20 bg-gradient-to-b from-emerald-950/30 to-slate-950 p-4">
-        <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-          Hackathon Edition
+      {/* Spatial HUD Info Card */}
+      <div className="hidden md:block mt-8 rounded-2xl border border-slate-800/80 bg-gradient-to-b from-slate-900/60 to-slate-950 p-4">
+        <div className="text-[11px] font-mono font-semibold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span>Spatial AI Workspace</span>
         </div>
-        <p className="mt-1 text-xs text-slate-300">
-          Hacktoberfest Hack Day Pune × NIAT–ADYPU. Best Open-Source AI Project category.
+        <p className="mt-1 text-xs text-slate-400 leading-relaxed">
+          Powered by local open-weight <code className="text-emerald-300">deepseek-r1:8b</code> with zero cloud API keys required.
         </p>
-        <div className="mt-3 flex items-center gap-2 text-[11px] text-slate-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          <span>Local Open-Weight Model</span>
+        <div className="mt-3 flex items-center justify-between text-[11px] text-slate-500 font-mono border-t border-slate-800/80 pt-2.5">
+          <span>Ollama Engine</span>
+          <span className="text-slate-300">v0.1.x / REST</span>
         </div>
       </div>
     </aside>

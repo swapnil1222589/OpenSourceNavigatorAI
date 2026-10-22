@@ -1,82 +1,82 @@
-# OpenSource Navigator AI — 3-Minute Hackathon Demo Script
+# OpenSource Navigator AI — Hackathon Live Demo Script
 
-**Target Audience:** Hacktoberfest Hack Day Pune × NIAT–ADYPU Judges & Hackathon Attendees  
+**Event:** Hacktoberfest Hack Day Pune × NIAT–ADYPU  
 **Category:** Best Open-Source AI Project  
-**Presenter:** Swapnil Ghuge & OpenSource Navigator AI Team  
-**Estimated Time:** ~3 minutes  
+**Presenter:** Swapnil  
+**Duration:** ~5 Minutes  
 
 ---
 
-## [0:00 - 0:30] Hook & Problem Statement
-
-**Action:** Open browser to `http://localhost:3000`. Point to the top bar showing the live **Ollama** status pill and **OpenSource Navigator AI** header.
-
-> **Speaker:**  
-> "Good evening judges and fellow open-source builders! Every Hacktoberfest, thousands of students and junior developers want to contribute to open-source software, but they face a daunting wall of complexity: unfamiliar codebases, cryptic issue descriptions, and fear of asking 'dumb' questions.
->
-> We built **OpenSource Navigator AI** — your AI guide to your very first open-source contribution, powered 100% locally by open-weight AI models."
+## Demo Goals
+Demonstrate a production-grade, full-stack open-source contribution assistant powered by **local open-weight AI** (`deepseek-r1:8b` via Ollama) with:
+1. **Spatial UI** (HUD, dark developer palette, responsive layout, quick command palette via `Ctrl+K`).
+2. **Multi-Agent System** (8 typed, autonomous specialist agents orbiting an orchestrator nucleus).
+3. **Repository Context Grounding** (Distinguishing verified real files from AI hypotheses).
+4. **Actionable Roadmaps** (Customizable checklists with 1-click Markdown PR export).
 
 ---
 
-## [0:30 - 1:15] Step 1 & 2: Real GitHub Issue Discovery & Inspection
-
-**Action:**
-1. In the **Discover Issues** tab, show the live search bar and filter controls.
-2. Click the quick filter chip `Python` and `#good first issue`.
-3. Highlight that the issues shown are **real, live GitHub issues** (excluding PRs) pulled straight from the GitHub REST API.
-4. Click the `GitHub` link on one issue to briefly preview the real issue on GitHub.com in a new tab.
-
-> **Speaker:**  
-> "Here on our discovery dashboard, we query the official GitHub Search API in real time. We automatically filter out noisy pull requests, support debounced search across languages like Python, TypeScript, and Rust, and filter for beginner labels like `good first issue`.
->
-> Notice this real issue right here. Instead of leaving a beginner guessing what to do next, we click **'Analyze with AI'**."
+## Step 1: System Health & Zero-Cost Architecture (30 Seconds)
+1. Point to the top navigation header:
+   - **Ollama Status:** Green indicator showing `deepseek-r1:8b` connected locally on port 11434. Emphasize that **zero cloud AI API keys** or paid credits are required.
+   - **GitHub API:** Shows live rate-limit status (5,000 req/h authenticated or 60 req/h public fallback).
+   - **Contributor Profile:** Demonstrates instant personalization selector (`Beginner`, `Intermediate`, `Advanced`).
+2. Press `Ctrl+K` to open the **Spatial Command Palette**:
+   - Showcase instant keyboard-first navigation across all workspace modules and direct skill configuration.
 
 ---
 
-## [1:15 - 2:00] Step 3: Local Open-Weight AI Analysis
-
-**Action:**
-1. Click **Analyze with AI** on the selected issue.
-2. Watch the analysis screen generate the structured guide.
-3. Walk through the generated cards:
-   - Plain-English Summary (jargon-free)
-   - Estimated Contributor Difficulty (`Beginner` / `Intermediate`) with rationale
-   - Possible Skills required (badges)
-   - Step-by-step Investigation Plan
-   - Suggested Inspection Areas (labeled explicitly as *Hypotheses*)
-   - Testing strategy & Maintainer questions
-
-> **Speaker:**  
-> "Under the hood, our FastAPI backend dispatches the issue text to our local **Ollama** engine running an open-weight model (`deepseek-r1:8b` / `qwen3:4b`). No paid APIs, no privacy leaks.
->
-> Notice the AI doesn't just hallucinate — it decomposes the issue into a plain-English explanation for students, gives an honest difficulty assessment, outlines an investigation plan, and explicitly flags suspected files as hypotheses since we haven't cloned the repo yet."
+## Step 2: Live GitHub Issue Discovery (60 Seconds)
+1. Navigate to **Discover Issues**:
+   - Show pre-filtered, beginner-friendly issues curated from GitHub's live REST API.
+   - Test search filter: Language = `python`, Label = `good first issue`, Repo = `pallets/flask`.
+   - Highlight the exclusion of pull requests from issue results and real comment counts.
+2. Select an issue and click **"Studio"** (or **"Analyze"**):
+   - The selected issue seamlessly passes into the **Agent Studio**.
 
 ---
 
-## [2:00 - 2:30] Step 4: Interactive Contribution Roadmap
-
-**Action:**
-1. Click the **Create Contribution Plan** button.
-2. The UI transitions smoothly to the **My Contribution Plans** tab.
-3. Show the dynamic progress bar (0%).
-4. Check off the first two preparation tasks (e.g. *'Fork repository'* and *'Verify CONTRIBUTING.md'*).
-5. Watch the progress bar instantly update.
-6. Change status from `Not Started` to `In Progress`.
-
-> **Speaker:**  
-> "With one click, we turn that AI breakdown into an actionable **Contribution Roadmap**.
->
-> Stored locally in the browser, the student gets a structured checklist: setup, investigation, implementation, testing, and a final pull-request checklist. As they make progress, they tick off items and see their confidence and readiness grow."
+## Step 3: Multi-Agent AI Studio & Constellation (90 Seconds)
+1. Navigate to **Agent Studio**:
+   - Introduce the **2D Agent Constellation**: 7 specialist satellites (Discovery, Understanding, Repo Context, Skill Matching, Planning, Test Strategy, PR Readiness) connected via animated spokes to the central **Orchestrator Nucleus**.
+2. Click **"Run Multi-Agent Pipeline"**:
+   - Watch the constellation animate as agents transition from `idle` to `running` (amber pulse) to `completed` (emerald glow).
+   - Point out that every agent has a typed Pydantic schema, specific prompt instructions, and real execution telemetry (duration in seconds).
+3. Click any specialist node (e.g. **Test Strategy Agent** or **PR Readiness Agent**):
+   - Open the **Agent Inspector Drawer** on the right.
+   - Inspect the verified capabilities, system prompt snippet, and live JSON output payload.
+   - Click **"Copy JSON"** to demonstrate clipboard integration.
+4. Show the **"Cancel Run"** button and background resilience via the thread-safe `TaskStore`.
 
 ---
 
-## [2:30 - 3:00] Step 5: Architecture, Open-Source Value & Conclusion
+## Step 4: Spatial Repository Context Explorer (60 Seconds)
+1. Switch to **Repo Explorer**:
+   - Enter `pallets/flask` (or click directly from an agent output).
+   - View the live repository file tree retrieved from GitHub's API.
+   - Highlight the **Verified Repository Files** badge and automatic identification of `CONTRIBUTING.md` and test suites.
+2. Open a source file (e.g., `src/flask/blueprints.py`):
+   - Show the safe file viewer with byte size limit safeguards and line-numbered code viewer.
+   - Emphasize the core safety rule: **AI suggestions are clearly marked as hypotheses unless verified against this real tree.**
 
-**Action:** Switch to the **About the Project** tab, highlighting the System Architecture and Security posturing.
+---
 
-> **Speaker:**  
-> "Architecturally, OpenSource Navigator AI uses Next.js with Tailwind on the frontend, FastAPI and Pydantic on the backend, and local Ollama inference. We follow strict security guardrails: untrusted issue text is sanitized, zero secrets are ever leaked or sent to the browser, and no destructive unattended actions are performed.
->
-> By democratizing open-source discovery with local open-weight AI, we're helping the next generation of engineers make meaningful contributions to the global open-source ecosystem.
->
-> Thank you, and we welcome your questions!"
+## Step 5: Contribution Roadmap & Markdown Export (60 Seconds)
+1. Open **Contribution Plans**:
+   - Display a generated structured roadmap with 5 phases:
+     1. Preparation & Setup
+     2. Investigation
+     3. Implementation
+     4. Testing Strategy
+     5. PR Readiness
+   - Check off a completed item.
+   - Add a custom task (e.g., *"Set up virtual environment with pytest"*).
+2. Click **"Download Markdown"** or **"Copy MD"**:
+   - Show the generated Markdown output formatted with GitHub checkboxes and ready to paste directly into a GitHub PR description or issue comment.
+
+---
+
+## Summary & Closing (30 Seconds)
+- **100% Open Standards:** Built with Next.js, FastAPI, and open-weight models.
+- **Hackathon Alignment:** Perfect fit for the *Best Open-Source AI Project* category.
+- **True Utility:** Bridges the intimidating gap between student developers and their very first open-source contribution!

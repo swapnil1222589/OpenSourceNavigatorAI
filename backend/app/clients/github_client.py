@@ -254,3 +254,52 @@ class GitHubClient:
             return context
         except Exception:
             return context
+
+    async def get_file_content(self, repo_name: str, path: str) -> Dict[str, Any]:
+        """Safely fetch and decode content of a specific file from GitHub with strict size bounds."""
+        import base64
+
+        clean_repo = repo_name.strip().replace("https://github.com/", "").strip("/")
+        clean_path = path.strip().lstrip("/")
+
+        url = f"{self.base_url}/repos/{clean_repo}/contents/{clean_path}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                res = await client.get(url, headers=self._get_headers())
+                if res.status_code == 404:
+                    return {"found": False, "error": f"File '{clean_path}' not found in repository."}
+                if res.status_code != 200:
+                    return {"found": False, "error": f"GitHub returned HTTP {res.status_code}."}
+
+                data = res.json()
+                if data.get("type") != "file":
+                    return {"found": False, "error": f"Path '{clean_path}' is a directory, not a file."}
+
+                size = data.get("size", 0)
+                if size > 100 * 1024:  # 100 KB limit
+                    return {
+                        "found": True,
+                        "path": clean_path,
+                        "size": size,
+                        "html_url": data.get("html_url"),
+                        "truncated": True,
+                        "content": "(File exceeds 100KB safe preview limit. Inspect directly on GitHub.)",
+                    }
+
+                raw_b64 = data.get("content", "")
+                decoded_bytes = base64.b64decode(raw_b64)
+                try:
+                    text_content = decoded_bytes.decode("utf-8")
+                except UnicodeDecodeError:
+                    text_content = "(Binary file content cannot be displayed as text.)"
+
+                return {
+                    "found": True,
+                    "path": clean_path,
+                    "size": size,
+                    "html_url": data.get("html_url"),
+                    "truncated": False,
+                    "content": text_content[:50000],  # Bound to 50KB text
+                }
+        except Exception as e:
+            return {"found": False, "error": f"Network error reading file: {str(e)}"}

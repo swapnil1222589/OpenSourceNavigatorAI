@@ -1,18 +1,29 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ExternalLink, MessageSquare, Calendar, Sparkles, FolderGit2, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ExternalLink,
+  MessageSquare,
+  Calendar,
+  Sparkles,
+  FolderGit2,
+  ChevronDown,
+  ChevronUp,
+  Bot,
+} from 'lucide-react';
 import { IssueItem } from '../lib/types';
 
 interface IssueCardProps {
   issue: IssueItem;
   onAnalyze: (issue: IssueItem) => void;
+  onSendToStudio?: (issue: IssueItem) => void;
   isAnalyzing: boolean;
 }
 
 export const IssueCard: React.FC<IssueCardProps> = ({
   issue,
   onAnalyze,
+  onSendToStudio,
   isAnalyzing,
 }) => {
   const [expanded, setExpanded] = useState(false);
@@ -84,7 +95,7 @@ export const IssueCard: React.FC<IssueCardProps> = ({
       </div>
 
       {/* Footer Actions */}
-      <div className="mt-5 pt-3 border-t border-slate-800/80 flex items-center justify-between">
+      <div className="mt-5 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3 text-xs text-slate-400">
           <span className="font-mono text-slate-400">#{issue.number}</span>
           <div className="flex items-center gap-1 text-slate-400">
@@ -93,17 +104,27 @@ export const IssueCard: React.FC<IssueCardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <a
             href={issue.html_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-1.5 text-xs text-slate-300 hover:text-white hover:border-slate-700 transition-all"
+            className="flex items-center gap-1 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1.5 text-xs text-slate-400 hover:text-white hover:border-slate-700 transition-all"
             title="Open original issue on GitHub"
           >
-            <span>GitHub</span>
             <ExternalLink className="h-3 w-3" />
           </a>
+
+          {onSendToStudio && (
+            <button
+              onClick={() => onSendToStudio(issue)}
+              title="Inspect in 8-Agent Constellation"
+              className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs text-slate-300 hover:border-emerald-500 hover:text-emerald-300 transition-all cursor-pointer"
+            >
+              <Bot className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Studio</span>
+            </button>
+          )}
 
           <button
             onClick={() => onAnalyze(issue)}
@@ -111,7 +132,7 @@ export const IssueCard: React.FC<IssueCardProps> = ({
             className="flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-semibold shadow-md shadow-emerald-950 transition-all disabled:opacity-50 cursor-pointer"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            <span>Analyze with AI</span>
+            <span>Analyze</span>
           </button>
         </div>
       </div>
