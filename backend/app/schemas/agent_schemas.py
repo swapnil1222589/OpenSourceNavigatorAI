@@ -160,15 +160,23 @@ class PRReadinessOutput(BaseModel):
 # Workflow Run Request & Response
 class WorkflowRunRequest(BaseModel):
     target_agent: str = "orchestrator"  # "orchestrator" or agent ID
+    agent_name: Optional[str] = None  # alias for target_agent
     issue_title: Optional[str] = None
     issue_body: Optional[str] = ""
     repository_name: Optional[str] = None
     issue_url: Optional[str] = None
     labels: List[str] = Field(default_factory=list)
     user_experience: str = "Beginner"
+    user_skill_level: Optional[str] = None
     preferred_languages: List[str] = Field(default_factory=list)
     learning_goals: Optional[str] = None
     search_params: Optional[Dict[str, Any]] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if self.agent_name and self.target_agent == "orchestrator":
+            self.target_agent = self.agent_name
+        if self.user_skill_level and self.user_experience == "Beginner":
+            self.user_experience = self.user_skill_level
 
 
 class WorkflowRunResponse(BaseModel):
@@ -177,3 +185,4 @@ class WorkflowRunResponse(BaseModel):
     target_agent: str
     created_at: float
     message: str
+    record: Optional[Dict[str, Any]] = None

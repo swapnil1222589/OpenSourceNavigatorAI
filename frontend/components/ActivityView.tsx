@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   WorkflowRunRecord,
+  getAgentExecutionsList,
 } from '../lib/types';
 import { listRuns, retryRun, cancelRun } from '../lib/api';
 import {
@@ -12,7 +13,6 @@ import {
   Play,
   Square,
   AlertCircle,
-  ExternalLink,
   Bot,
   ChevronDown,
   ChevronUp,
@@ -32,7 +32,9 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onGoToStudio }) => {
   const fetchRuns = useCallback(async () => {
     try {
       const data = await listRuns(30);
-      setRuns(data);
+      if (Array.isArray(data)) {
+        setRuns(data);
+      }
       setError(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to fetch agent activity log.');
@@ -140,6 +142,8 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onGoToStudio }) => {
         <div className="space-y-3">
           {runs.map((run) => {
             const isExpanded = expandedRunId === run.run_id;
+            const execs = getAgentExecutionsList(run);
+            const duration = run.total_duration_ms || run.duration_ms;
 
             return (
               <div
@@ -168,9 +172,9 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onGoToStudio }) => {
                         <span className="font-mono text-xs text-slate-400 font-semibold">
                           Run: {run.run_id}
                         </span>
-                        {run.agent_filter ? (
+                        {run.target_agent && run.target_agent !== 'orchestrator' ? (
                           <span className="text-[10px] bg-slate-800 text-purple-300 font-mono px-2 py-0.5 rounded">
-                            single:{run.agent_filter}
+                            single:{run.target_agent}
                           </span>
                         ) : (
                           <span className="text-[10px] bg-emerald-500/10 text-emerald-400 font-mono px-2 py-0.5 rounded border border-emerald-500/20">
@@ -180,17 +184,17 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onGoToStudio }) => {
                       </div>
 
                       <div className="text-xs text-slate-200 font-medium mt-0.5 truncate max-w-xl">
-                        {run.issue_title || run.repository_name || 'Orchestration Run'}
+                        {run.issue_title || run.issue_context?.title || run.repository_name || 'Orchestration Run'}
                       </div>
                     </div>
                   </div>
 
                   {/* Actions & Metrics */}
                   <div className="flex items-center gap-4 self-end md:self-auto">
-                    {run.total_duration_ms && (
+                    {duration != null && (
                       <span className="flex items-center gap-1 text-[11px] font-mono text-slate-400">
                         <Clock className="h-3 w-3" />
-                        {(run.total_duration_ms / 1000).toFixed(1)}s
+                        {(duration / 1000).toFixed(1)}s
                       </span>
                     )}
 
@@ -233,18 +237,18 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onGoToStudio }) => {
                 {isExpanded && (
                   <div className="border-t border-slate-800 bg-slate-900/40 p-4 space-y-3">
                     <div className="text-xs font-semibold text-slate-300">
-                      Specialist Agent Executions ({run.agent_executions.length})
+                      Specialist Agent Executions ({execs.length})
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                      {run.agent_executions.map((exec) => (
+                      {execs.map((exec) => (
                         <div
-                          key={exec.agent_name}
+                          key={exec.agent_id || exec.agent_name}
                           className="rounded-xl border border-slate-800 bg-slate-950 p-2.5 flex items-center justify-between text-xs"
                         >
                           <div>
                             <div className="font-semibold text-slate-200 text-[11px]">
-                              {exec.agent_name}
+                              {exec.agent_name || exec.agent_id}
                             </div>
                             <div className="text-[10px] text-slate-500 font-mono">
                               {exec.duration_ms

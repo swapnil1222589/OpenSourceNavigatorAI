@@ -26,8 +26,8 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
   initialRepo = 'pallets/flask',
   onSelectIssueDiscover,
 }) => {
-  const [repoInput, setRepoInput] = useState<string>(initialRepo);
-  const [activeRepo, setActiveRepo] = useState<string>(initialRepo);
+  const [repoInput, setRepoInput] = useState<string>(initialRepo || 'pallets/flask');
+  const [activeRepo, setActiveRepo] = useState<string>(initialRepo || 'pallets/flask');
 
   const [exploreData, setExploreData] = useState<RepoFileExploreResponse | null>(null);
   const [loadingExplore, setLoadingExplore] = useState<boolean>(false);
@@ -42,43 +42,9 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [fileFilter, setFileFilter] = useState<string>('');
 
-  // Explore repository
-  const handleExplore = useCallback(async (targetRepo: string) => {
-    if (!targetRepo || !targetRepo.includes('/')) {
-      setExploreError('Please provide a valid repository in the format "owner/repo"');
-      return;
-    }
-
-    setLoadingExplore(true);
-    setExploreError(null);
-    setSelectedFile(null);
-    setFileContent(null);
-    try {
-      const data = await exploreRepository(targetRepo.trim(), 80);
-      setExploreData(data);
-      setActiveRepo(targetRepo.trim());
-
-      // Auto-select CONTRIBUTING or README if found
-      if (data.contributing_file) {
-        handleOpenFile(targetRepo.trim(), data.contributing_file);
-      } else if (data.readme_file) {
-        handleOpenFile(targetRepo.trim(), data.readme_file);
-      } else if (data.files.length > 0) {
-        handleOpenFile(targetRepo.trim(), data.files[0]);
-      }
-    } catch (e: unknown) {
-      setExploreError(e instanceof Error ? e.message : 'Failed to explore repository.');
-    } finally {
-      setLoadingExplore(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    handleExplore(initialRepo);
-  }, [initialRepo, handleExplore]);
-
   // Open file content
-  const handleOpenFile = async (repo: string, filePath: string) => {
+  const handleOpenFile = useCallback(async (repo: string, filePath: string) => {
+    if (!repo || !filePath) return;
     setSelectedFile(filePath);
     setLoadingFile(true);
     setFileError(null);
@@ -91,7 +57,50 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
     } finally {
       setLoadingFile(false);
     }
-  };
+  }, []);
+
+  // Explore repository
+  const handleExplore = useCallback(
+    async (targetRepo: string) => {
+      if (!targetRepo || !targetRepo.includes('/')) {
+        setExploreError('Please provide a valid repository in the format "owner/repo"');
+        return;
+      }
+
+      setLoadingExplore(true);
+      setExploreError(null);
+      setSelectedFile(null);
+      setFileContent(null);
+      try {
+        const data = await exploreRepository(targetRepo.trim(), 80);
+        setExploreData(data);
+        setActiveRepo(targetRepo.trim());
+
+        const verifiedList = data?.files || data?.verified_files || [];
+
+        // Auto-select CONTRIBUTING, README, or first file if available
+        if (data.contributing_file) {
+          handleOpenFile(targetRepo.trim(), data.contributing_file);
+        } else if (data.readme_file) {
+          handleOpenFile(targetRepo.trim(), data.readme_file);
+        } else if (verifiedList.length > 0) {
+          handleOpenFile(targetRepo.trim(), verifiedList[0]);
+        }
+      } catch (e: unknown) {
+        setExploreError(e instanceof Error ? e.message : 'Failed to explore repository.');
+      } finally {
+        setLoadingExplore(false);
+      }
+    },
+    [handleOpenFile]
+  );
+
+  useEffect(() => {
+    if (initialRepo) {
+      setRepoInput(initialRepo);
+      handleExplore(initialRepo);
+    }
+  }, [initialRepo, handleExplore]);
 
   const handleCopyContent = () => {
     if (fileContent?.content) {
@@ -101,8 +110,12 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
     }
   };
 
-  const filteredFiles = (exploreData?.files || []).filter((f) =>
-    f.toLowerCase().includes(fileFilter.toLowerCase())
+  const filesList = exploreData?.files || exploreData?.verified_files || [];
+  const testDirs = exploreData?.test_directories || [];
+  const filesCount = exploreData?.files_count ?? filesList.length;
+
+  const filteredFiles = filesList.filter((f) =>
+    (f || '').toLowerCase().includes(fileFilter.toLowerCase())
   );
 
   return (
@@ -189,7 +202,7 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
       {/* Quick context pills */}
       {exploreData && (
         <div className="flex flex-wrap items-center gap-2">
-          {exploreData.contributing_file && (
+          {exploreData.contributing_file ? (
             <button
               onClick={() => handleOpenFile(activeRepo, exploreData.contributing_file!)}
               className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer"
@@ -197,7 +210,12 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
               <FileText className="h-3.5 w-3.5" />
               <span>Contributing Guide: {exploreData.contributing_file}</span>
             </button>
-          )}
+          ) : exploreData.contributing_found ? (
+            <span className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Contributing Guide Verified</span>
+            </span>
+          ) : null}
 
           {exploreData.readme_file && (
             <button
@@ -209,7 +227,7 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
             </button>
           )}
 
-          {exploreData.test_directories.map((dir, i) => (
+          {testDirs.map((dir, i) => (
             <span
               key={i}
               className="rounded-xl border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs text-purple-300 font-mono"
@@ -219,7 +237,7 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
           ))}
 
           <span className="text-xs text-slate-400 font-mono ml-auto">
-            {exploreData.files_count} files verified
+            {filesCount} files verified
           </span>
         </div>
       )}

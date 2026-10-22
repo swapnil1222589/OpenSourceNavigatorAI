@@ -16,13 +16,12 @@ import {
   GitPullRequest,
   Workflow,
   Clock,
-  AlertTriangle,
 } from 'lucide-react';
 
 interface AgentConstellationProps {
   agents: AgentMetadata[];
   activeAgentId: string | null;
-  onSelectAgent: (agentName: string) => void;
+  onSelectAgent: (agentIdOrName: string) => void;
   executions: AgentExecutionRecord[];
   isWorkflowRunning: boolean;
 }
@@ -34,48 +33,42 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
   executions,
   isWorkflowRunning,
 }) => {
-  // Map execution status by agent name
+  // Map execution status by agent id and name
   const statusMap = new Map<string, { status: AgentRunStatus; duration?: number | null }>();
-  executions.forEach((e) => {
-    statusMap.set(e.agent_name, {
-      status: e.status,
-      duration: e.duration_ms,
-    });
+  (executions || []).forEach((e) => {
+    if (e.agent_id) {
+      statusMap.set(e.agent_id, { status: e.status, duration: e.duration_ms });
+    }
+    if (e.agent_name) {
+      statusMap.set(e.agent_name, { status: e.status, duration: e.duration_ms });
+    }
   });
 
-  const getAgentIcon = (name: string) => {
-    switch (name) {
-      case 'orchestrator':
-        return Workflow;
-      case 'issue_discovery':
-        return Compass;
-      case 'issue_understanding':
-        return FileSearch;
-      case 'repository_context':
-        return FolderGit2;
-      case 'skill_matching':
-        return GraduationCap;
-      case 'contribution_planning':
-        return ListTodo;
-      case 'test_strategy':
-        return CheckCircle2;
-      case 'pr_readiness':
-        return GitPullRequest;
-      default:
-        return Compass;
-    }
+  const getAgentIcon = (idOrName: string) => {
+    const key = (idOrName || '').toLowerCase();
+    if (key.includes('orchestrat')) return Workflow;
+    if (key.includes('discovery')) return Compass;
+    if (key.includes('understanding')) return FileSearch;
+    if (key.includes('repo') || key.includes('context')) return FolderGit2;
+    if (key.includes('skill')) return GraduationCap;
+    if (key.includes('plan')) return ListTodo;
+    if (key.includes('test')) return CheckCircle2;
+    if (key.includes('pr') || key.includes('readiness')) return GitPullRequest;
+    return Compass;
   };
 
-  // 7 satellites positioned symmetrically in a circle around center (x=300, y=260)
   const centerX = 320;
   const centerY = 270;
   const radius = 190;
 
-  const specialistAgents = agents.filter((a) => a.name !== 'orchestrator');
-  const orchestrator = agents.find((a) => a.name === 'orchestrator');
+  const orchestrator =
+    agents.find((a) => a.id === 'orchestrator' || a.name?.toLowerCase().includes('orchestrat')) ||
+    agents[0];
+  const specialistAgents = agents.filter((a) => a !== orchestrator);
 
   const nodes = specialistAgents.map((agent, i) => {
-    const angle = (i * 2 * Math.PI) / specialistAgents.length - Math.PI / 2;
+    const total = Math.max(1, specialistAgents.length);
+    const angle = (i * 2 * Math.PI) / total - Math.PI / 2;
     const x = centerX + radius * Math.cos(angle);
     const y = centerY + radius * Math.sin(angle);
     return { agent, x, y };
@@ -83,32 +76,18 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
 
   return (
     <div className="relative w-full h-[580px] rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-950 via-[#070b12] to-slate-950 overflow-hidden select-none shadow-inner flex items-center justify-center">
-      {/* Background Starfield Grid Pattern */}
+      {/* Background Grid Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:32px_32px]" />
 
-      {/* Ambient background glow */}
+      {/* Ambient glow */}
       <div
         className={`absolute w-96 h-96 rounded-full blur-3xl pointer-events-none transition-all duration-700 ${
-          isWorkflowRunning
-            ? 'bg-emerald-500/15 animate-pulse'
-            : 'bg-indigo-500/10'
+          isWorkflowRunning ? 'bg-emerald-500/15 animate-pulse' : 'bg-indigo-500/10'
         }`}
       />
 
       {/* SVG Connection Lines */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
-        <defs>
-          <linearGradient id="orbit-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#10b981" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.2" />
-          </linearGradient>
-          <radialGradient id="ring-grad">
-            <stop offset="60%" stopColor="#0f172a" stopOpacity="0" />
-            <stop offset="100%" stopColor="#334155" stopOpacity="0.3" />
-          </radialGradient>
-        </defs>
-
-        {/* Orbit track ring */}
         <circle
           cx={centerX}
           cy={centerY}
@@ -120,16 +99,16 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
           className="opacity-70"
         />
 
-        {/* Constellation spokes from Center Orchestrator to Specialists */}
         {nodes.map(({ agent, x, y }) => {
-          const info = statusMap.get(agent.name);
-          const isSelected = activeAgentId === agent.name;
+          const agentKey = agent.id || agent.name;
+          const info = statusMap.get(agentKey) || (agent.id ? statusMap.get(agent.id) : undefined);
+          const isSelected = activeAgentId === agentKey || (agent.id && activeAgentId === agent.id);
           const isRunning = info?.status === 'running';
           const isCompleted = info?.status === 'completed';
 
           return (
             <line
-              key={agent.name}
+              key={agentKey}
               x1={centerX}
               y1={centerY}
               x2={x}
@@ -154,10 +133,10 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
       {/* Center Orchestrator Node */}
       {orchestrator && (
         <div
-          onClick={() => onSelectAgent('orchestrator')}
+          onClick={() => onSelectAgent(orchestrator.id || orchestrator.name)}
           style={{ left: `${centerX}px`, top: `${centerY}px` }}
           className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center p-3.5 rounded-2xl cursor-pointer transition-all duration-300 z-20 ${
-            activeAgentId === 'orchestrator'
+            activeAgentId === (orchestrator.id || orchestrator.name) || activeAgentId === 'orchestrator'
               ? 'ring-2 ring-emerald-400 bg-slate-900 shadow-xl shadow-emerald-500/30 scale-105'
               : 'bg-slate-900/90 border border-slate-700 hover:border-emerald-500/60 shadow-lg'
           }`}
@@ -178,7 +157,7 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
             )}
           </div>
           <span className="mt-2 text-xs font-bold text-white tracking-wide">
-            Orchestrator
+            {orchestrator.display_name || orchestrator.name || 'Orchestrator'}
           </span>
           <span className="text-[10px] text-emerald-400 font-mono">
             {isWorkflowRunning ? 'COORDINATING' : 'READY'}
@@ -188,9 +167,10 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
 
       {/* Satellite Specialist Nodes */}
       {nodes.map(({ agent, x, y }) => {
-        const Icon = getAgentIcon(agent.name);
-        const info = statusMap.get(agent.name);
-        const isSelected = activeAgentId === agent.name;
+        const agentKey = agent.id || agent.name;
+        const Icon = getAgentIcon(agentKey);
+        const info = statusMap.get(agentKey) || (agent.id ? statusMap.get(agent.id) : undefined);
+        const isSelected = activeAgentId === agentKey || (agent.id && activeAgentId === agent.id);
         const status = info?.status || 'idle';
 
         let statusBorder = 'border-slate-800 bg-slate-900/90';
@@ -215,8 +195,8 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
 
         return (
           <div
-            key={agent.name}
-            onClick={() => onSelectAgent(agent.name)}
+            key={agentKey}
+            onClick={() => onSelectAgent(agentKey)}
             style={{ left: `${x}px`, top: `${y}px` }}
             className={`absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center p-2.5 rounded-2xl cursor-pointer transition-all duration-200 z-10 w-36 text-center ${statusBorder} ${statusGlow} hover:scale-105`}
           >
@@ -244,13 +224,11 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
             </div>
 
             <span className="text-[11px] font-semibold text-slate-100 truncate w-full px-1">
-              {agent.display_name}
+              {agent.display_name || agent.name}
             </span>
 
             <div className="mt-1 flex items-center justify-center gap-1 w-full">
-              <span
-                className={`text-[9px] uppercase font-mono px-1.5 py-0.2 rounded-md ${badgeColor}`}
-              >
+              <span className={`text-[9px] uppercase font-mono px-1.5 py-0.2 rounded-md ${badgeColor}`}>
                 {status}
               </span>
               {info?.duration && (
@@ -264,7 +242,7 @@ export const AgentConstellation: React.FC<AgentConstellationProps> = ({
         );
       })}
 
-      {/* Constellation HUD overlay legend */}
+      {/* Legend */}
       <div className="absolute bottom-3 left-4 flex items-center gap-3 text-[11px] font-mono text-slate-400 bg-slate-950/70 border border-slate-800 px-3 py-1.5 rounded-xl backdrop-blur-md">
         <span className="flex items-center gap-1.5">
           <span className="h-2 w-2 rounded-full bg-slate-600" /> Idle

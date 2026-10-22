@@ -30,6 +30,7 @@ class TaskStore:
                 user_skill_level=user_skill_level,
                 agents_state={},
             )
+            record.sync_aliases()
             self._runs[run_id] = record
 
             # Evict oldest if exceeding max_runs
@@ -42,11 +43,16 @@ class TaskStore:
 
     def get_run(self, run_id: str) -> Optional[WorkflowRunRecord]:
         with self._lock:
-            return self._runs.get(run_id)
+            run = self._runs.get(run_id)
+            if run:
+                run.sync_aliases()
+            return run
 
     def list_runs(self, limit: int = 20) -> List[WorkflowRunRecord]:
         with self._lock:
             runs = sorted(self._runs.values(), key=lambda r: r.created_at, reverse=True)
+            for r in runs:
+                r.sync_aliases()
             return runs[:limit]
 
     def update_agent_state(
@@ -91,6 +97,8 @@ class TaskStore:
             if status == AgentRunStatus.RUNNING and run.status != AgentRunStatus.CANCELLED:
                 run.status = AgentRunStatus.RUNNING
 
+            run.sync_aliases()
+
     def finish_run(
         self,
         run_id: str,
@@ -116,11 +124,14 @@ class TaskStore:
             if error is not None:
                 run.error = error
 
+            run.sync_aliases()
+
     def cancel_run(self, run_id: str) -> bool:
         with self._lock:
             if run_id in self._runs:
                 self._cancelled_runs.add(run_id)
                 self._runs[run_id].status = AgentRunStatus.CANCELLED
+                self._runs[run_id].sync_aliases()
                 return True
             return False
 

@@ -98,7 +98,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
     );
   }
 
-  const getDifficultyBadge = (level: string) => {
+  const getDifficultyBadge = (level?: string) => {
     switch (level) {
       case 'Beginner':
         return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
@@ -110,6 +110,12 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
   };
 
   const repoContext = analysis.retrieved_repo_context;
+  const possibleSkills = analysis.possible_skills || [];
+  const inspectionAreas = analysis.suggested_inspection_areas || [];
+  const investigationPlan = analysis.investigation_plan || [];
+  const testingStrategy = analysis.testing_strategy || [];
+  const commonPitfalls = analysis.common_pitfalls || [];
+  const maintainerQuestions = analysis.maintainer_questions || [];
 
   return (
     <div className="space-y-6">
@@ -118,7 +124,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
         <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
         <div className="leading-relaxed">
           <span className="font-semibold text-amber-200">Important Notice: </span>
-          {analysis.disclaimer}
+          {analysis.disclaimer || 'AI-generated guidance is advisory. Always consult repository guidelines.'}
         </div>
       </div>
 
@@ -130,7 +136,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
               <FolderGit2 className="h-3.5 w-3.5" />
               <span>{analysis.repository_name}</span>
               <span className="text-slate-600">•</span>
-              <span className="text-purple-400 font-sans font-medium">Model: {analysis.model_used}</span>
+              <span className="text-purple-400 font-sans font-medium">Model: {analysis.model_used || 'deepseek-r1:8b'}</span>
               {analysis.user_skill_level && (
                 <>
                   <span className="text-slate-600">•</span>
@@ -157,15 +163,17 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
               </a>
             )}
 
-            <a
-              href={analysis.issue_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-all"
-            >
-              <span>GitHub Issue</span>
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            {analysis.issue_url && (
+              <a
+                href={analysis.issue_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 px-3.5 py-2 text-xs font-semibold text-slate-200 transition-all"
+              >
+                <span>GitHub Issue</span>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            )}
 
             <button
               onClick={() => onCreatePlan(analysis)}
@@ -187,11 +195,11 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
                   analysis.estimated_difficulty
                 )}`}
               >
-                {analysis.estimated_difficulty}
+                {analysis.estimated_difficulty || 'Beginner'}
               </span>
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
-              {analysis.difficulty_rationale}
+              {analysis.difficulty_rationale || 'Straightforward beginner task.'}
             </p>
           </div>
 
@@ -200,14 +208,18 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
               Skills & Concepts To Understand
             </span>
             <div className="flex flex-wrap gap-1.5">
-              {analysis.possible_skills.map((skill, idx) => (
-                <span
-                  key={idx}
-                  className="rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 text-xs font-medium"
-                >
-                  {skill}
-                </span>
-              ))}
+              {possibleSkills.length > 0 ? (
+                possibleSkills.map((skill, idx) => (
+                  <span
+                    key={idx}
+                    className="rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-300 px-2 py-0.5 text-xs font-medium"
+                  >
+                    {skill}
+                  </span>
+                ))
+              ) : (
+                <span className="text-xs text-slate-500">General coding and Git proficiency</span>
+              )}
             </div>
           </div>
         </div>
@@ -268,26 +280,30 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
           </p>
 
           <div className="space-y-2.5">
-            {analysis.suggested_inspection_areas.map((area, idx) => (
-              <div
-                key={idx}
-                className="rounded-xl border border-slate-800/80 bg-slate-950/80 p-3 text-xs"
-              >
-                <div className="flex items-center justify-between gap-2 font-mono">
-                  <span className="text-slate-100 font-medium">{area.area_or_path}</span>
-                  {area.is_verified_in_repo ? (
-                    <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400 border border-emerald-500/30 font-sans font-medium shrink-0">
-                      ✓ Verified in Repo
-                    </span>
-                  ) : (
-                    <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400 border border-amber-500/30 font-sans font-medium shrink-0">
-                      Hypothesis
-                    </span>
-                  )}
+            {inspectionAreas.length > 0 ? (
+              inspectionAreas.map((area, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-slate-800/80 bg-slate-950/80 p-3 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2 font-mono">
+                    <span className="text-slate-100 font-medium">{area.area_or_path}</span>
+                    {area.is_verified_in_repo ? (
+                      <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-400 border border-emerald-500/30 font-sans font-medium shrink-0">
+                        ✓ Verified in Repo
+                      </span>
+                    ) : (
+                      <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-400 border border-amber-500/30 font-sans font-medium shrink-0">
+                        Hypothesis
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-slate-300 leading-relaxed">{area.rationale}</p>
                 </div>
-                <p className="mt-1.5 text-slate-300 leading-relaxed">{area.rationale}</p>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="text-xs text-slate-500 italic">No specific files identified yet.</div>
+            )}
           </div>
         </div>
       </div>
@@ -301,7 +317,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
             <h3>Step-by-Step Investigation Plan</h3>
           </div>
           <ol className="space-y-2.5 text-xs">
-            {analysis.investigation_plan.map((step, idx) => (
+            {investigationPlan.map((step, idx) => (
               <li
                 key={idx}
                 className="flex items-start gap-2.5 rounded-xl border border-slate-800/60 bg-slate-950/40 p-3"
@@ -322,7 +338,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
             <h3>Testing & Verification Strategy</h3>
           </div>
           <ul className="space-y-2 text-xs">
-            {analysis.testing_strategy.map((item, idx) => (
+            {testingStrategy.map((item, idx) => (
               <li
                 key={idx}
                 className="flex items-start gap-2 rounded-xl border border-slate-800/60 bg-slate-950/40 p-3 text-slate-300"
@@ -344,7 +360,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
             <h3>Common Pitfalls & Risks</h3>
           </div>
           <ul className="space-y-2 text-xs">
-            {analysis.common_pitfalls.map((pitfall, idx) => (
+            {commonPitfalls.map((pitfall, idx) => (
               <li
                 key={idx}
                 className="flex items-start gap-2 rounded-xl border border-rose-500/10 bg-rose-950/10 p-3 text-slate-300"
@@ -363,7 +379,7 @@ export const AnalyzerView: React.FC<AnalyzerViewProps> = ({
             <h3>Questions to Clarify with Maintainers</h3>
           </div>
           <ul className="space-y-2 text-xs">
-            {analysis.maintainer_questions.map((q, idx) => (
+            {maintainerQuestions.map((q, idx) => (
               <li
                 key={idx}
                 className="flex items-start gap-2 rounded-xl border border-purple-500/10 bg-purple-950/10 p-3 text-slate-300"

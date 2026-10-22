@@ -113,57 +113,85 @@ export type AgentRole =
   | 'planning'
   | 'test_strategy'
   | 'pr_readiness'
-  | 'orchestrator';
+  | 'orchestrator'
+  | string;
 
-export type AgentRunStatus = 'idle' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type AgentRunStatus =
+  | 'idle'
+  | 'queued'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'waiting'
+  | string;
 
 export interface AgentMetadata {
+  id?: string;
   name: string;
-  role: AgentRole;
-  display_name: string;
+  role: string;
+  display_name?: string;
   description: string;
-  capabilities: string[];
-  system_prompt_snippet: string;
-  input_schema_name: string;
-  output_schema_name: string;
-  model: string;
+  inputs_required?: string[];
+  produces?: string[];
+  phase?: number;
+  is_autonomous?: boolean;
+  capabilities?: string[];
+  system_prompt_snippet?: string;
+  input_schema_name?: string;
+  output_schema_name?: string;
+  model?: string;
 }
 
 export interface AgentExecutionRecord {
+  agent_id?: string;
   agent_name: string;
-  role: string;
+  role?: string;
   status: AgentRunStatus;
-  started_at?: string | null;
-  completed_at?: string | null;
+  started_at?: number | string | null;
+  completed_at?: number | string | null;
   duration_ms?: number | null;
   error?: string | null;
-  input_summary?: Record<string, unknown> | null;
+  input_summary?: string | Record<string, unknown> | null;
   output_data?: Record<string, unknown> | null;
 }
 
 export interface WorkflowRunRecord {
   run_id: string;
-  created_at: string;
+  target_agent?: string;
+  created_at: number | string;
   status: AgentRunStatus;
   agent_filter?: string | null;
   issue_title?: string | null;
   repository_name?: string | null;
-  model_used: string;
-  started_at?: string | null;
-  completed_at?: string | null;
+  issue_context?: {
+    title?: string;
+    repo?: string;
+    url?: string;
+    body?: string;
+  } | null;
+  model_used?: string;
+  started_at?: number | string | null;
+  completed_at?: number | string | null;
+  duration_ms?: number | null;
   total_duration_ms?: number | null;
   error?: string | null;
-  agent_executions: AgentExecutionRecord[];
+  user_skill_level?: string;
+  agents_state?: Record<string, AgentExecutionRecord>;
+  agent_executions?: AgentExecutionRecord[];
+  combined_result?: Record<string, unknown> | null;
   final_result?: Record<string, unknown> | null;
 }
 
 export interface WorkflowRunRequest {
+  target_agent?: string;
   agent_name?: string | null;
   issue_title?: string | null;
   issue_body?: string | null;
   repository_name?: string | null;
   issue_url?: string | null;
   labels?: string[];
+  user_experience?: string;
   user_skill_level?: string;
   user_skills_list?: string[];
   search_query?: string;
@@ -174,17 +202,22 @@ export interface WorkflowRunRequest {
 export interface WorkflowRunResponse {
   run_id: string;
   status: AgentRunStatus;
+  target_agent?: string;
+  created_at?: number;
   message: string;
-  record: WorkflowRunRecord;
+  record?: WorkflowRunRecord;
 }
 
 export interface RepoFileExploreResponse {
-  repository_name: string;
-  files_count: number;
-  files: string[];
+  repository_name?: string;
+  files_count?: number;
+  files?: string[];
+  verified_files?: string[];
+  contributing_found?: boolean;
   contributing_file?: string | null;
+  contributing_url?: string | null;
   readme_file?: string | null;
-  test_directories: string[];
+  test_directories?: string[];
 }
 
 export interface RepoFileContentResponse {
@@ -193,4 +226,18 @@ export interface RepoFileContentResponse {
   size_bytes: number;
   is_truncated: boolean;
   content: string;
+}
+
+/**
+ * Utility helper to extract executions safely from any format of WorkflowRunRecord
+ */
+export function getAgentExecutionsList(record: WorkflowRunRecord | null | undefined): AgentExecutionRecord[] {
+  if (!record) return [];
+  if (record.agent_executions && Array.isArray(record.agent_executions) && record.agent_executions.length > 0) {
+    return record.agent_executions;
+  }
+  if (record.agents_state && typeof record.agents_state === 'object') {
+    return Object.values(record.agents_state);
+  }
+  return [];
 }

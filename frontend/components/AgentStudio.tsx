@@ -6,6 +6,7 @@ import {
   WorkflowRunRecord,
   WorkflowRunRequest,
   IssueItem,
+  getAgentExecutionsList,
 } from '../lib/types';
 import {
   listAgents,
@@ -19,8 +20,6 @@ import {
   RotateCw,
   Square,
   Sparkles,
-  CheckCircle2,
-  AlertCircle,
   Copy,
   Check,
   Code2,
@@ -29,6 +28,7 @@ import {
   ArrowRight,
   ShieldCheck,
   FolderGit2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface AgentStudioProps {
@@ -74,13 +74,18 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
     setLoadingAgents(true);
     try {
       const data = await listAgents();
-      setAgents(data);
+      if (Array.isArray(data)) {
+        setAgents(data);
+        if (data.length > 0 && !selectedAgentName) {
+          setSelectedAgentName(data[0].id || data[0].name);
+        }
+      }
     } catch (err: unknown) {
       setRunError(err instanceof Error ? err.message : 'Failed to load agent metadata.');
     } finally {
       setLoadingAgents(false);
     }
-  }, []);
+  }, [selectedAgentName]);
 
   useEffect(() => {
     fetchAgentsList();
@@ -89,10 +94,10 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
   // Sync when prefilledIssue changes
   useEffect(() => {
     if (prefilledIssue) {
-      setRepoName(prefilledIssue.repository_name);
-      setIssueTitle(prefilledIssue.title);
-      setIssueBody(prefilledIssue.body);
-      setIssueUrl(prefilledIssue.html_url);
+      setRepoName(prefilledIssue.repository_name || 'pallets/flask');
+      setIssueTitle(prefilledIssue.title || '');
+      setIssueBody(prefilledIssue.body || '');
+      setIssueUrl(prefilledIssue.html_url || '');
     }
   }, [prefilledIssue]);
 
@@ -124,7 +129,7 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
           }
         }
       } catch {
-        // If poll transiently fails, keep polling until terminal or user cancels
+        // Continue polling until terminal state or cancelled
       }
     }, 1500);
   }, []);
@@ -135,17 +140,21 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
     setRunError(null);
     try {
       const payload: WorkflowRunRequest = {
-        agent_name: null, // Runs all 7 specialist agents via orchestrator
+        target_agent: 'orchestrator',
+        agent_name: 'orchestrator',
         issue_title: issueTitle,
         issue_body: issueBody,
         repository_name: repoName,
         issue_url: issueUrl,
+        user_experience: userSkill,
         user_skill_level: userSkill,
         search_language: 'python',
       };
 
       const res = await startWorkflowRun(payload);
-      setCurrentRun(res.record);
+      if (res.record) {
+        setCurrentRun(res.record);
+      }
       startPollingRun(res.run_id);
     } catch (e: unknown) {
       setIsRunning(false);
@@ -154,26 +163,30 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
   };
 
   // Execute only the currently selected specialist agent
-  const handleRunSingleAgent = async (agentName: string) => {
+  const handleRunSingleAgent = async (agentIdOrName: string) => {
     setIsRunning(true);
     setRunError(null);
     try {
       const payload: WorkflowRunRequest = {
-        agent_name: agentName,
+        target_agent: agentIdOrName,
+        agent_name: agentIdOrName,
         issue_title: issueTitle,
         issue_body: issueBody,
         repository_name: repoName,
         issue_url: issueUrl,
+        user_experience: userSkill,
         user_skill_level: userSkill,
         search_language: 'python',
       };
 
       const res = await startWorkflowRun(payload);
-      setCurrentRun(res.record);
+      if (res.record) {
+        setCurrentRun(res.record);
+      }
       startPollingRun(res.run_id);
     } catch (e: unknown) {
       setIsRunning(false);
-      setRunError(e instanceof Error ? e.message : `Failed to launch agent ${agentName}.`);
+      setRunError(e instanceof Error ? e.message : `Failed to launch agent ${agentIdOrName}.`);
     }
   };
 
@@ -194,17 +207,34 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
     }
   };
 
-  // Copy helper
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const selectedAgent = agents.find((a) => a.name === selectedAgentName) || agents[0];
-  const selectedExecution = currentRun?.agent_executions.find(
-    (e) => e.agent_name === selectedAgentName
+  const selectedAgent =
+    agents.find((a) => a.id === selectedAgentName || a.name === selectedAgentName) ||
+    agents[0];
+
+  const executions = getAgentExecutionsList(currentRun);
+  const selectedExecution = executions.find(
+    (e) =>
+      (selectedAgent?.id && e.agent_id === selectedAgent.id) ||
+      (selectedAgent?.name && e.agent_name === selectedAgent.name) ||
+      e.agent_id === selectedAgentName ||
+      e.agent_name === selectedAgentName
   );
+
+  const capabilities =
+    (selectedAgent?.capabilities && selectedAgent.capabilities.length > 0)
+      ? selectedAgent.capabilities
+      : (selectedAgent?.produces || []).map((p) => `Produces ${p.replace('_', ' ')}`);
+
+  const promptSnippet =
+    selectedAgent?.system_prompt_snippet ||
+    selectedAgent?.description ||
+    'Specialist open-weight AI agent.';
 
   return (
     <div className="space-y-6">
@@ -314,9 +344,9 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
         <div className="lg:col-span-7 flex flex-col space-y-4">
           <AgentConstellation
             agents={agents}
-            activeAgentId={selectedAgentName}
+            activeAgentId={selectedAgent?.id || selectedAgent?.name || selectedAgentName}
             onSelectAgent={setSelectedAgentName}
-            executions={currentRun?.agent_executions || []}
+            executions={executions}
             isWorkflowRunning={isRunning}
           />
 
@@ -339,9 +369,9 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
                 </span>
               </div>
 
-              {currentRun.total_duration_ms && (
+              {(currentRun.total_duration_ms || currentRun.duration_ms) && (
                 <div className="text-slate-400 font-mono text-[11px]">
-                  Duration: {(currentRun.total_duration_ms / 1000).toFixed(2)}s
+                  Duration: {(((currentRun.total_duration_ms || currentRun.duration_ms) ?? 0) / 1000).toFixed(2)}s
                 </div>
               )}
             </div>
@@ -358,14 +388,14 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-mono uppercase tracking-wider text-emerald-400">
-                        {selectedAgent.role}
+                        {selectedAgent.role || 'Specialist'}
                       </span>
                       <span className="text-[10px] font-mono text-slate-500 border border-slate-800 px-1.5 py-0.5 rounded">
-                        {selectedAgent.model}
+                        {selectedAgent.model || 'deepseek-r1:8b'}
                       </span>
                     </div>
                     <h2 className="text-lg font-bold text-white mt-1">
-                      {selectedAgent.display_name}
+                      {selectedAgent.display_name || selectedAgent.name}
                     </h2>
                   </div>
 
@@ -400,7 +430,7 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
                     Verified Capabilities
                   </h4>
                   <div className="grid grid-cols-1 gap-1.5">
-                    {selectedAgent.capabilities.map((cap, i) => (
+                    {capabilities.map((cap, i) => (
                       <div
                         key={i}
                         className="flex items-center gap-2 text-xs text-slate-300 bg-slate-900/80 px-2.5 py-1.5 rounded-xl border border-slate-800/80"
@@ -419,7 +449,7 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
                     <span>System Prompt Snippet</span>
                   </h4>
                   <pre className="rounded-xl bg-slate-900 p-2.5 text-[11px] font-mono text-slate-400 border border-slate-800 whitespace-pre-wrap">
-                    {selectedAgent.system_prompt_snippet}
+                    {promptSnippet}
                   </pre>
                 </div>
 
@@ -466,14 +496,14 @@ export const AgentStudio: React.FC<AgentStudioProps> = ({
               </div>
 
               {/* Action Trigger Button */}
-              {selectedAgent.name !== 'orchestrator' && (
+              {selectedAgent.id !== 'orchestrator' && !selectedAgent.name?.toLowerCase().includes('orchestrat') && (
                 <div className="pt-2 border-t border-slate-800">
                   <button
-                    onClick={() => handleRunSingleAgent(selectedAgent.name)}
+                    onClick={() => handleRunSingleAgent(selectedAgent.id || selectedAgent.name)}
                     disabled={isRunning}
                     className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900 py-2.5 text-xs font-semibold text-slate-200 hover:border-emerald-500 hover:text-emerald-400 hover:bg-slate-800/80 transition-all cursor-pointer disabled:opacity-50"
                   >
-                    <span>Run Only {selectedAgent.display_name}</span>
+                    <span>Run Only {selectedAgent.display_name || selectedAgent.name}</span>
                     <ArrowRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
