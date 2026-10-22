@@ -67,7 +67,7 @@ async def analyze_issue(payload: AnalyzeRequest) -> AnalysisResult:
     try:
         # Fetch repository context (top files and contributing guidelines)
         repo_context = await github_client.get_repo_context(payload.repository_name)
-        return await ollama_client.analyze_issue(payload, repo_context=repo_context)
+        return await ollama_client.analyze_issue(payload, repo_context=repo_context, allow_fallback=True)
     except ConnectionError as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

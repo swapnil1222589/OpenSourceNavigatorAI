@@ -68,48 +68,69 @@ Return ONLY valid JSON.
         if available and effective_model not in available:
             effective_model = available[0]
 
-        async with httpx.AsyncClient(timeout=self.ollama_client.timeout) as client:
-            res = await client.post(
-                f"{self.ollama_client.base_url}/api/chat",
-                json={
-                    "model": effective_model,
-                    "messages": [
-                        {"role": "system", "content": "You are a QA and test automation specialist agent. Return only valid JSON."},
-                        {"role": "user", "content": prompt},
-                    ],
-                    "stream": False,
-                    "format": "json",
-                    "options": {"temperature": 0.2, "num_predict": 1000},
-                },
-            )
-
-            if res.status_code != 200:
-                raise RuntimeError(f"Ollama returned HTTP {res.status_code}: {res.text}")
-
-            content = res.json().get("message", {}).get("content", "")
-            cleaned = re.sub(r"<think>[\s\S]*?</think>", "", content, flags=re.DOTALL).strip()
-            fence = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", cleaned, re.DOTALL)
-            raw_json = fence.group(1) if fence else cleaned
-            brace = re.search(r"(\{[\s\S]*\})", raw_json, re.DOTALL)
-            parsed = json.loads(brace.group(1) if brace else raw_json)
-
-            test_cases = []
-            for tc in parsed.get("test_cases", []):
-                test_cases.append(
-                    TestCaseSuggestion(
-                        name=tc.get("name", "test_case"),
-                        purpose=tc.get("purpose", "Validation"),
-                        expected_result=tc.get("expected_result", "Pass"),
-                        test_type=tc.get("test_type", "Unit"),
-                    )
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                res = await client.post(
+                    f"{self.ollama_client.base_url}/api/chat",
+                    json={
+                        "model": effective_model,
+                        "messages": [
+                            {"role": "system", "content": "You are a QA and test automation specialist agent. Return only valid JSON."},
+                            {"role": "user", "content": prompt},
+                        ],
+                        "stream": False,
+                        "format": "json",
+                        "options": {"temperature": 0.1, "num_predict": 350},
+                    },
                 )
 
-            output = TestStrategyOutput(
-                suggested_test_framework=parsed.get("suggested_test_framework", "Standard test framework"),
-                reproduction_steps=parsed.get("reproduction_steps", ["Run test suite locally."]),
-                test_cases=test_cases,
-                edge_cases_to_consider=parsed.get("edge_cases_to_consider", []),
-                success_indicators=parsed.get("success_indicators", ["Tests pass without error."]),
-                failure_indicators=parsed.get("failure_indicators", ["Assertions fail."]),
-            )
-            return output.model_dump()
+                if res.status_code == 200:
+                    content = res.json().get("message", {}).get("content", "")
+                    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", content, flags=re.DOTALL).strip()
+                    fence = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", cleaned, re.DOTALL)
+                    raw_json = fence.group(1) if fence else cleaned
+                    brace = re.search(r"(\{[\s\S]*\})", raw_json, re.DOTALL)
+                    parsed = json.loads(brace.group(1) if brace else raw_json)
+
+                    test_cases = []
+                    for tc in parsed.get("test_cases", []):
+                        test_cases.append(
+                            TestCaseSuggestion(
+                                name=tc.get("name", "test_case"),
+                                purpose=tc.get("purpose", "Validation"),
+                                expected_result=tc.get("expected_result", "Pass"),
+                                test_type=tc.get("test_type", "Unit"),
+                            )
+                        )
+
+                    output = TestStrategyOutput(
+                        suggested_test_framework=parsed.get("suggested_test_framework", "pytest"),
+                        reproduction_steps=parsed.get("reproduction_steps", ["Run test suite locally."]),
+                        test_cases=test_cases,
+                        edge_cases_to_consider=parsed.get("edge_cases_to_consider", []),
+                        success_indicators=parsed.get("success_indicators", ["Tests pass without error."]),
+                        failure_indicators=parsed.get("failure_indicators", ["Assertions fail."]),
+                    )
+                    return output.model_dump()
+        except Exception:
+            pass
+
+        # Fallback test strategy if Ollama times out
+        fallback_test = TestCaseSuggestion(
+            name="test_reproduce_and_verify_fix",
+            purpose="Assert that the reported issue is fixed without regressions",
+            expected_result="Test passes with expected return value / exception",
+            test_type="Unit",
+        )
+        return TestStrategyOutput(
+            suggested_test_framework="pytest" if "flask" in inp.repository_name.lower() or "python" in inp.repository_name.lower() else "Jest / Vitest",
+            reproduction_steps=[
+                f"1. Run existing test suite in {inp.repository_name}",
+                f"2. Trigger scenario described in '{inp.issue_title}'",
+                "3. Assert expected output matches requirements",
+            ],
+            test_cases=[fallback_test],
+            edge_cases_to_consider=["Boundary conditions and empty input values"],
+            success_indicators=["All test suite assertions pass cleanly with 0 failures"],
+            failure_indicators=["AssertionError or unexpected unhandled exception"],
+        ).model_dump()
