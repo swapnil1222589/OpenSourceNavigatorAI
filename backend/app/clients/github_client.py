@@ -229,6 +229,8 @@ class GitHubClient:
         url = f"{self.base_url}/repos/{clean_repo}/contents"
         context: Dict[str, Any] = {
             "verified_files": [],
+            "items": [],
+            "first_file": None,
             "contributing_found": False,
             "contributing_url": None,
         }
@@ -239,16 +241,34 @@ class GitHubClient:
                 if res.status_code == 200:
                     contents = res.json()
                     if isinstance(contents, list):
-                        names = [item.get("name", "") for item in contents if "name" in item]
-                        # Top-level paths up to 30 entries
-                        context["verified_files"] = names[:30]
+                        names = [item.get("name", "") for item in contents if isinstance(item, dict) and "name" in item]
+                        context["verified_files"] = names[:50]
 
+                        items_meta = []
+                        first_file_found = None
                         for item in contents:
-                            item_name = item.get("name", "").lower()
-                            if "contributing" in item_name:
+                            if not isinstance(item, dict):
+                                continue
+                            name = item.get("name", "")
+                            itype = item.get("type", "file")
+                            path = item.get("path", name)
+                            items_meta.append({
+                                "name": name,
+                                "type": itype,
+                                "path": path,
+                                "size": item.get("size", 0),
+                            })
+                            if itype == "file" and not first_file_found:
+                                # Prioritize README or main files
+                                if name.lower().startswith("readme") or not first_file_found:
+                                    first_file_found = path
+
+                            if "contributing" in name.lower():
                                 context["contributing_found"] = True
                                 context["contributing_url"] = item.get("html_url")
-                                break
+
+                        context["items"] = items_meta
+                        context["first_file"] = first_file_found
 
             self._repo_cache[clean_repo] = (now, context)
             return context
@@ -256,7 +276,7 @@ class GitHubClient:
             return context
 
     async def get_file_content(self, repo_name: str, path: str) -> Dict[str, Any]:
-        """Safely fetch and decode content of a specific file from GitHub with strict size bounds."""
+        """Safely fetch and decode content of a specific file or directory listing from GitHub with strict size bounds."""
         import base64
 
         clean_repo = repo_name.strip().replace("https://github.com/", "").strip("/")
@@ -267,22 +287,46 @@ class GitHubClient:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.get(url, headers=self._get_headers())
                 if res.status_code == 404:
-                    return {"found": False, "error": f"File '{clean_path}' not found in repository."}
+                    return {"found": False, "error": f"Path '{clean_path}' not found in repository."}
                 if res.status_code != 200:
                     return {"found": False, "error": f"GitHub returned HTTP {res.status_code}."}
 
                 data = res.json()
+
+                # Handle directory listings
+                if isinstance(data, list):
+                    entries = [
+                        f"- {'📁' if item.get('type') == 'dir' else '📄'} `{item.get('name')}` ({item.get('type')})"
+                        for item in data
+                        if isinstance(item, dict)
+                    ]
+                    listing = f"# Directory: `{clean_path}`\n\nContains {len(entries)} items:\n\n" + "\n".join(entries)
+                    return {
+                        "found": True,
+                        "path": clean_path,
+                        "is_directory": True,
+                        "size": len(data),
+                        "size_bytes": len(data),
+                        "html_url": f"https://github.com/{clean_repo}/tree/main/{clean_path}",
+                        "truncated": False,
+                        "is_truncated": False,
+                        "content": listing,
+                    }
+
                 if data.get("type") != "file":
-                    return {"found": False, "error": f"Path '{clean_path}' is a directory, not a file."}
+                    return {"found": False, "error": f"Path '{clean_path}' is not a readable file."}
 
                 size = data.get("size", 0)
                 if size > 100 * 1024:  # 100 KB limit
                     return {
                         "found": True,
                         "path": clean_path,
+                        "is_directory": False,
                         "size": size,
+                        "size_bytes": size,
                         "html_url": data.get("html_url"),
                         "truncated": True,
+                        "is_truncated": True,
                         "content": "(File exceeds 100KB safe preview limit. Inspect directly on GitHub.)",
                     }
 
@@ -296,9 +340,12 @@ class GitHubClient:
                 return {
                     "found": True,
                     "path": clean_path,
+                    "is_directory": False,
                     "size": size,
+                    "size_bytes": size,
                     "html_url": data.get("html_url"),
                     "truncated": False,
+                    "is_truncated": False,
                     "content": text_content[:50000],  # Bound to 50KB text
                 }
         except Exception as e:

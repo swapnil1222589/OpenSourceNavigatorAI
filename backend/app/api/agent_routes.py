@@ -142,6 +142,8 @@ async def explore_repository(
         "files_count": len(file_names),
         "files": file_names,
         "verified_files": file_names,
+        "items": context.get("items", []),
+        "first_file": context.get("first_file") or readme_file,
         "contributing_found": contributing_found,
         "contributing_file": contributing_file,
         "contributing_url": contributing_url,

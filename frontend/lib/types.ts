@@ -208,11 +208,20 @@ export interface WorkflowRunResponse {
   record?: WorkflowRunRecord;
 }
 
+export interface RepoTreeItem {
+  name: string;
+  type: 'file' | 'dir' | string;
+  path: string;
+  size?: number;
+}
+
 export interface RepoFileExploreResponse {
   repository_name?: string;
   files_count?: number;
   files?: string[];
   verified_files?: string[];
+  items?: RepoTreeItem[];
+  first_file?: string | null;
   contributing_found?: boolean;
   contributing_file?: string | null;
   contributing_url?: string | null;
@@ -221,11 +230,17 @@ export interface RepoFileExploreResponse {
 }
 
 export interface RepoFileContentResponse {
-  repository_name: string;
-  file_path: string;
-  size_bytes: number;
-  is_truncated: boolean;
-  content: string;
+  found?: boolean;
+  path?: string;
+  file_path?: string;
+  size?: number;
+  size_bytes?: number;
+  is_directory?: boolean;
+  is_truncated?: boolean;
+  truncated?: boolean;
+  content?: string;
+  error?: string | null;
+  html_url?: string | null;
 }
 
 /**

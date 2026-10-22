@@ -12,10 +12,10 @@ import {
   Check,
   ExternalLink,
   RotateCw,
-  Sparkles,
+  Folder,
 } from 'lucide-react';
 import { exploreRepository, fetchRepositoryFile } from '../lib/api';
-import { RepoFileContentResponse, RepoFileExploreResponse } from '../lib/types';
+import { RepoFileContentResponse, RepoFileExploreResponse, RepoTreeItem } from '../lib/types';
 
 interface RepositoryExplorerProps {
   initialRepo?: string;
@@ -50,7 +50,12 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
     setFileError(null);
     try {
       const content = await fetchRepositoryFile(repo, filePath);
-      setFileContent(content);
+      if (content.found === false) {
+        setFileError(content.error || `Could not load ${filePath}`);
+        setFileContent(null);
+      } else {
+        setFileContent(content);
+      }
     } catch (e: unknown) {
       setFileError(e instanceof Error ? e.message : 'Failed to fetch file content.');
       setFileContent(null);
@@ -76,15 +81,16 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
         setExploreData(data);
         setActiveRepo(targetRepo.trim());
 
-        const verifiedList = data?.files || data?.verified_files || [];
+        // Target file to display first (prioritizes README or first file)
+        const targetInitial =
+          data.first_file ||
+          data.readme_file ||
+          data.contributing_file ||
+          (data.items && data.items.find((i) => i.type === 'file')?.path) ||
+          (data.files && data.files.length > 0 ? data.files[0] : null);
 
-        // Auto-select CONTRIBUTING, README, or first file if available
-        if (data.contributing_file) {
-          handleOpenFile(targetRepo.trim(), data.contributing_file);
-        } else if (data.readme_file) {
-          handleOpenFile(targetRepo.trim(), data.readme_file);
-        } else if (verifiedList.length > 0) {
-          handleOpenFile(targetRepo.trim(), verifiedList[0]);
+        if (targetInitial) {
+          handleOpenFile(targetRepo.trim(), targetInitial);
         }
       } catch (e: unknown) {
         setExploreError(e instanceof Error ? e.message : 'Failed to explore repository.');
@@ -110,13 +116,25 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
     }
   };
 
-  const filesList = exploreData?.files || exploreData?.verified_files || [];
-  const testDirs = exploreData?.test_directories || [];
-  const filesCount = exploreData?.files_count ?? filesList.length;
+  const rawList = exploreData?.items || [];
+  const stringList: RepoTreeItem[] =
+    rawList.length > 0
+      ? rawList
+      : (exploreData?.files || exploreData?.verified_files || []).map((name) => ({
+          name,
+          type: name.includes('.') ? 'file' : 'dir',
+          path: name,
+        }));
 
-  const filteredFiles = filesList.filter((f) =>
-    (f || '').toLowerCase().includes(fileFilter.toLowerCase())
+  const testDirs = exploreData?.test_directories || [];
+  const filesCount = exploreData?.files_count ?? stringList.length;
+
+  const filteredTree = stringList.filter((item) =>
+    (item.name || item.path || '').toLowerCase().includes(fileFilter.toLowerCase())
   );
+
+  const fileSize = fileContent?.size_bytes ?? fileContent?.size ?? 0;
+  const isTruncated = fileContent?.is_truncated ?? fileContent?.truncated ?? false;
 
   return (
     <div className="space-y-6">
@@ -128,7 +146,7 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
             <span>Repository Context Explorer</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Spatial inspection of verified real files, test directories, and contributor guidelines vs. AI hypotheses.
+            Live inspection of real GitHub source code, verified file trees, and maintainer guidelines.
           </p>
         </div>
 
@@ -202,21 +220,6 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
       {/* Quick context pills */}
       {exploreData && (
         <div className="flex flex-wrap items-center gap-2">
-          {exploreData.contributing_file ? (
-            <button
-              onClick={() => handleOpenFile(activeRepo, exploreData.contributing_file!)}
-              className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              <span>Contributing Guide: {exploreData.contributing_file}</span>
-            </button>
-          ) : exploreData.contributing_found ? (
-            <span className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              <span>Contributing Guide Verified</span>
-            </span>
-          ) : null}
-
           {exploreData.readme_file && (
             <button
               onClick={() => handleOpenFile(activeRepo, exploreData.readme_file!)}
@@ -226,6 +229,21 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
               <span>Readme: {exploreData.readme_file}</span>
             </button>
           )}
+
+          {exploreData.contributing_file ? (
+            <button
+              onClick={() => handleOpenFile(activeRepo, exploreData.contributing_file!)}
+              className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300 hover:bg-emerald-500/20 transition-all cursor-pointer"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              <span>Contributing Guide</span>
+            </button>
+          ) : exploreData.contributing_found ? (
+            <span className="flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-300">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              <span>Contributing Guide Verified</span>
+            </span>
+          ) : null}
 
           {testDirs.map((dir, i) => (
             <span
@@ -237,13 +255,13 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
           ))}
 
           <span className="text-xs text-slate-400 font-mono ml-auto">
-            {filesCount} files verified
+            {filesCount} items verified
           </span>
         </div>
       )}
 
       {/* Split File Explorer Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[550px]">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[580px]">
         {/* Left Tree Pane (4 Cols) */}
         <div className="lg:col-span-4 rounded-3xl border border-slate-800 bg-slate-950 p-4 flex flex-col space-y-3">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
@@ -269,38 +287,50 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
           </div>
 
           {/* File list */}
-          <div className="overflow-y-auto max-h-[460px] space-y-1 pr-1">
-            {filteredFiles.length === 0 ? (
+          <div className="overflow-y-auto max-h-[480px] space-y-1 pr-1">
+            {filteredTree.length === 0 ? (
               <div className="py-8 text-center text-xs text-slate-500">
                 {exploreData ? 'No matching files.' : 'No repository explored yet.'}
               </div>
             ) : (
-              filteredFiles.map((file) => {
-                const isSelected = selectedFile === file;
-                const isDoc = file.toLowerCase().includes('.md') || file.toLowerCase().includes('.rst');
-                const isTest = file.toLowerCase().includes('test');
-                const Icon = isDoc ? FileText : FileCode;
+              filteredTree.map((item) => {
+                const isSelected = selectedFile === item.path || selectedFile === item.name;
+                const isDir = item.type === 'dir';
+                const isDoc = (item.name || '').toLowerCase().includes('.md') || (item.name || '').toLowerCase().includes('.rst');
+                const isTest = (item.name || '').toLowerCase().includes('test');
+
+                const Icon = isDir ? Folder : isDoc ? FileText : FileCode;
 
                 return (
                   <button
-                    key={file}
-                    onClick={() => handleOpenFile(activeRepo, file)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
+                    key={item.path || item.name}
+                    onClick={() => handleOpenFile(activeRepo, item.path || item.name)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
                       isSelected
                         ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-medium'
                         : 'text-slate-400 hover:bg-slate-900 hover:text-slate-200'
                     }`}
                   >
-                    <Icon
-                      className={`h-3.5 w-3.5 shrink-0 ${
-                        isTest
-                          ? 'text-purple-400'
-                          : isDoc
-                          ? 'text-sky-400'
-                          : 'text-slate-400'
-                      }`}
-                    />
-                    <span className="truncate font-mono text-[11px]">{file}</span>
+                    <div className="flex items-center gap-2.5 truncate">
+                      <Icon
+                        className={`h-3.5 w-3.5 shrink-0 ${
+                          isDir
+                            ? 'text-amber-400'
+                            : isTest
+                            ? 'text-purple-400'
+                            : isDoc
+                            ? 'text-sky-400'
+                            : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate font-mono text-[11px]">{item.name}</span>
+                    </div>
+
+                    {isDir && (
+                      <span className="text-[9px] uppercase font-mono text-slate-500 border border-slate-800 px-1.5 py-0.2 rounded">
+                        dir
+                      </span>
+                    )}
                   </button>
                 );
               })
@@ -312,24 +342,35 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
         <div className="lg:col-span-8 rounded-3xl border border-slate-800 bg-slate-950 p-5 flex flex-col space-y-4">
           {/* Header of Content Pane */}
           <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-2">
-              <FileCode className="h-4 w-4 text-emerald-400" />
+            <div className="flex items-center gap-2 truncate">
+              <FileCode className="h-4 w-4 text-emerald-400 shrink-0" />
               <span className="font-mono text-xs text-slate-200 font-semibold truncate max-w-md">
                 {selectedFile || 'Select a file to inspect'}
               </span>
-              {fileContent && (
-                <span className="text-[10px] text-slate-500 font-mono">
-                  ({(fileContent.size_bytes / 1024).toFixed(1)} KB)
+              {fileSize > 0 && (
+                <span className="text-[10px] text-slate-500 font-mono shrink-0">
+                  ({(fileSize / 1024).toFixed(1)} KB)
                 </span>
               )}
             </div>
 
             {fileContent && (
-              <div className="flex items-center gap-2">
-                {fileContent.is_truncated && (
+              <div className="flex items-center gap-2 shrink-0">
+                {isTruncated && (
                   <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
                     Truncated (safety limit)
                   </span>
+                )}
+                {fileContent.html_url && (
+                  <a
+                    href={fileContent.html_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-200 transition-colors"
+                  >
+                    <span>GitHub</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
                 )}
                 <button
                   onClick={handleCopyContent}
@@ -343,7 +384,7 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
                   ) : (
                     <>
                       <Copy className="h-3.5 w-3.5" />
-                      <span className="text-[11px]">Copy</span>
+                      <span className="text-[11px]">Copy Code</span>
                     </>
                   )}
                 </button>
@@ -353,21 +394,25 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
 
           {/* File Body or Loading */}
           {loadingFile ? (
-            <div className="flex-1 flex flex-col items-center justify-center py-20 text-slate-500 space-y-2">
+            <div className="flex-1 flex flex-col items-center justify-center py-24 text-slate-500 space-y-2">
               <RotateCw className="h-6 w-6 animate-spin text-emerald-400" />
-              <span className="text-xs">Fetching repository file safely...</span>
+              <span className="text-xs">Fetching code from repository...</span>
             </div>
           ) : fileError ? (
-            <div className="p-8 text-center text-xs text-rose-400">
-              {fileError}
+            <div className="flex-1 flex flex-col items-center justify-center py-20 text-rose-400 text-xs text-center space-y-2">
+              <AlertCircle className="h-8 w-8 text-rose-400" />
+              <div className="font-semibold">{fileError}</div>
+              <p className="text-slate-500 text-[11px] max-w-sm">
+                Select another verified file from the repository tree on the left.
+              </p>
             </div>
-          ) : fileContent ? (
+          ) : fileContent?.content ? (
             <div className="flex-1 overflow-x-auto rounded-2xl bg-slate-900/90 border border-slate-800/80 p-4 font-mono text-xs text-slate-200 leading-relaxed max-h-[500px] overflow-y-auto">
               <pre className="whitespace-pre-wrap">{fileContent.content}</pre>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center py-24 text-slate-600 space-y-3">
-              <Sparkles className="h-8 w-8 text-slate-600" />
+              <FolderGit2 className="h-8 w-8 text-slate-600" />
               <span className="text-xs">
                 Select any verified file from the repository tree on the left to inspect its code.
               </span>
