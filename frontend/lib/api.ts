@@ -12,14 +12,56 @@ import {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
-export async function getHealth(): Promise<HealthStatus> {
-  const res = await fetch(`${API_BASE}/api/v1/health`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    throw new Error(`Health check failed with HTTP ${res.status}`);
+async function fetchJson<T>(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 30000
+): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+
+    if (!res.ok) {
+      let errorMsg = `HTTP ${res.status}`;
+      try {
+        const errJson = await res.json();
+        if (errJson && errJson.detail) {
+          errorMsg = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+        }
+      } catch {
+        // Fallback to status text
+        if (res.statusText) errorMsg = `${res.status} ${res.statusText}`;
+      }
+      throw new Error(errorMsg);
+    }
+
+    return (await res.json()) as T;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Request timed out after ${timeoutMs / 1000}s. Please check backend connection.`);
+    }
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error(
+        `Cannot connect to OpenSource Navigator AI backend at ${API_BASE}. Ensure the FastAPI server is running.`
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return res.json();
+}
+
+export async function getHealth(): Promise<HealthStatus> {
+  return fetchJson<HealthStatus>(`${API_BASE}/api/v1/health`, { cache: 'no-store' }, 8000);
 }
 
 export async function fetchIssues(params: {
@@ -40,16 +82,34 @@ export async function fetchIssues(params: {
   if (params.per_page) query.set('per_page', params.per_page.toString());
   if (params.sort) query.set('sort', params.sort);
 
-  const res = await fetch(`${API_BASE}/api/v1/issues?${query.toString()}`, {
-    cache: 'no-store',
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Failed to fetch issues: HTTP ${res.status}`);
+  try {
+    return await fetchJson<IssueSearchResponse>(
+      `${API_BASE}/api/v1/issues?${query.toString()}`,
+      { cache: 'no-store' },
+      20000
+    );
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.toLowerCase().includes('rate limit')) {
+      let reset: number | null = null;
+      try {
+        const parsed = JSON.parse(err.message);
+        if (parsed.rate_limit_reset) reset = parsed.rate_limit_reset;
+      } catch {
+        // Not JSON
+      }
+      return {
+        total_count: 0,
+        items: [],
+        page: params.page || 1,
+        per_page: params.per_page || 10,
+        total_pages: 1,
+        rate_limited: true,
+        rate_limit_reset: reset,
+        message: err.message,
+      };
+    }
+    throw err;
   }
-
-  return res.json();
 }
 
 export async function analyzeIssue(payload: {
@@ -60,20 +120,15 @@ export async function analyzeIssue(payload: {
   labels?: string[];
   user_skill_level?: string;
 }): Promise<AnalysisResult> {
-  const res = await fetch(`${API_BASE}/api/v1/analyze`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+  return fetchJson<AnalysisResult>(
+    `${API_BASE}/api/v1/analyze`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({}));
-    throw new Error(errorData.detail || `AI analysis failed: HTTP ${res.status}`);
-  }
-
-  return res.json();
+    90000
+  );
 }
 
 // ==========================================
@@ -81,77 +136,53 @@ export async function analyzeIssue(payload: {
 // ==========================================
 
 export async function listAgents(): Promise<AgentMetadata[]> {
-  const res = await fetch(`${API_BASE}/api/v1/agents`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to fetch agent list: HTTP ${res.status}`);
-  }
-  return res.json();
+  return fetchJson<AgentMetadata[]>(`${API_BASE}/api/v1/agents`, { cache: 'no-store' }, 10000);
 }
 
 export async function listRuns(limit = 20): Promise<WorkflowRunRecord[]> {
-  const res = await fetch(`${API_BASE}/api/v1/agents/runs?limit=${limit}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to fetch workflow runs: HTTP ${res.status}`);
-  }
-  return res.json();
+  return fetchJson<WorkflowRunRecord[]>(
+    `${API_BASE}/api/v1/agents/runs?limit=${limit}`,
+    { cache: 'no-store' },
+    10000
+  );
 }
 
-export async function startWorkflowRun(
-  payload: WorkflowRunRequest
-): Promise<WorkflowRunResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/agents/runs`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
+export async function startWorkflowRun(payload: WorkflowRunRequest): Promise<WorkflowRunResponse> {
+  return fetchJson<WorkflowRunResponse>(
+    `${API_BASE}/api/v1/agents/runs`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to trigger workflow run: HTTP ${res.status}`);
-  }
-  return res.json();
+    20000
+  );
 }
 
 export async function getRunStatus(runId: string): Promise<WorkflowRunRecord> {
-  const res = await fetch(`${API_BASE}/api/v1/agents/runs/${runId}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to fetch run status: HTTP ${res.status}`);
-  }
-  return res.json();
+  return fetchJson<WorkflowRunRecord>(
+    `${API_BASE}/api/v1/agents/runs/${encodeURIComponent(runId)}`,
+    { cache: 'no-store' },
+    10000
+  );
 }
 
 export async function retryRun(runId: string): Promise<WorkflowRunResponse> {
-  const res = await fetch(`${API_BASE}/api/v1/agents/runs/${runId}/retry`, {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to retry run: HTTP ${res.status}`);
-  }
-  return res.json();
+  return fetchJson<WorkflowRunResponse>(
+    `${API_BASE}/api/v1/agents/runs/${encodeURIComponent(runId)}/retry`,
+    { method: 'POST' },
+    15000
+  );
 }
 
 export async function cancelRun(
   runId: string
 ): Promise<{ run_id: string; status: string; message: string }> {
-  const res = await fetch(`${API_BASE}/api/v1/agents/runs/${runId}/cancel`, {
-    method: 'POST',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to cancel run: HTTP ${res.status}`);
-  }
-  return res.json();
+  return fetchJson<{ run_id: string; status: string; message: string }>(
+    `${API_BASE}/api/v1/agents/runs/${encodeURIComponent(runId)}/cancel`,
+    { method: 'POST' },
+    10000
+  );
 }
 
 // ==========================================
@@ -166,14 +197,11 @@ export async function exploreRepository(
     repo,
     max_files: maxFiles.toString(),
   });
-  const res = await fetch(`${API_BASE}/api/v1/repository/explore?${query.toString()}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to explore repository: HTTP ${res.status}`);
-  }
-  return res.json();
+  return fetchJson<RepoFileExploreResponse>(
+    `${API_BASE}/api/v1/repository/explore?${query.toString()}`,
+    { cache: 'no-store' },
+    15000
+  );
 }
 
 export async function fetchRepositoryFile(
@@ -184,12 +212,9 @@ export async function fetchRepositoryFile(
     repo,
     path: filePath,
   });
-  const res = await fetch(`${API_BASE}/api/v1/repository/file?${query.toString()}`, {
-    cache: 'no-store',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Failed to fetch repository file: HTTP ${res.status}`);
-  }
-  return res.json();
+  return fetchJson<RepoFileContentResponse>(
+    `${API_BASE}/api/v1/repository/file?${query.toString()}`,
+    { cache: 'no-store' },
+    15000
+  );
 }

@@ -6,11 +6,9 @@ import {
   Cpu,
   ShieldCheck,
   Award,
-  Terminal,
   Layers,
   Sparkles,
   Bot,
-  FolderGit2,
   Workflow,
 } from 'lucide-react';
 

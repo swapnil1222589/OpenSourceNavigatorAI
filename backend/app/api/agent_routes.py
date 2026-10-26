@@ -7,7 +7,13 @@ from app.agents.base import AgentMetadata, AgentRunStatus, WorkflowRunRecord
 from app.agents.registry import registry
 from app.agents.task_store import task_store
 from app.clients.github_client import GitHubClient
-from app.schemas.agent_schemas import WorkflowRunRequest, WorkflowRunResponse
+from app.schemas.agent_schemas import (
+    WorkflowRunRequest,
+    WorkflowRunResponse,
+    adapt_input_for_agent,
+    is_valid_repo_name,
+    normalize_repo_name,
+)
 
 router = APIRouter()
 github_client = GitHubClient()
@@ -33,7 +39,12 @@ async def _execute_workflow_task(run_id: str, payload: Dict[str, Any]):
         task_store.finish_run(run_id=run_id, status=AgentRunStatus.FAILED, error=str(e))
 
 
-@router.post("/agents/runs", response_model=WorkflowRunResponse, status_code=status.HTTP_202_ACCEPTED, summary="Trigger agent or full workflow run")
+@router.post(
+    "/agents/runs",
+    response_model=WorkflowRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Trigger agent or full workflow run",
+)
 async def start_run(req: WorkflowRunRequest, background_tasks: BackgroundTasks) -> WorkflowRunResponse:
     """Trigger an individual specialist agent or coordinate the full multi-agent pipeline."""
     target = req.target_agent
@@ -42,6 +53,27 @@ async def start_run(req: WorkflowRunRequest, background_tasks: BackgroundTasks) 
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Agent '{target}' is not registered.",
         )
+
+    payload = req.model_dump()
+
+    # Pre-validate inputs specifically for single specialist agents to catch invalid inputs immediately
+    if target != "orchestrator":
+        try:
+            adapt_input_for_agent(target, payload)
+        except (ValueError, TypeError) as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Validation failed for agent '{target}': {str(e)}",
+            )
+    else:
+        # Validate repository format if provided for orchestrator
+        if req.repository_name:
+            clean_repo = normalize_repo_name(req.repository_name)
+            if clean_repo and not is_valid_repo_name(clean_repo):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid repository format '{req.repository_name}'. Expected 'owner/repo'.",
+                )
 
     run_id = f"run-{uuid.uuid4().hex[:8]}"
     issue_context = {
@@ -55,9 +87,9 @@ async def start_run(req: WorkflowRunRequest, background_tasks: BackgroundTasks) 
         target_agent=target,
         issue_context=issue_context,
         user_skill_level=req.user_experience,
+        original_request=payload,
     )
 
-    payload = req.model_dump()
     background_tasks.add_task(_execute_workflow_task, run_id, payload)
 
     return WorkflowRunResponse(
@@ -82,25 +114,26 @@ async def get_run_status(run_id: str) -> WorkflowRunRecord:
     return record
 
 
-@router.post("/agents/runs/{run_id}/retry", response_model=WorkflowRunResponse, summary="Retry a failed run")
+@router.post("/agents/runs/{run_id}/retry", response_model=WorkflowRunResponse, summary="Retry a failed or cancelled run")
 async def retry_run(run_id: str, background_tasks: BackgroundTasks) -> WorkflowRunResponse:
-    """Retry an existing run if failed or cancelled."""
-    record = task_store.get_run(run_id)
-    if not record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Run '{run_id}' not found.")
+    """Retry an existing run if failed or cancelled, preserving full original request payload."""
+    try:
+        record = task_store.prepare_retry(run_id)
+    except ValueError as e:
+        msg = str(e)
+        if "not found" in msg.lower():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=msg)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=msg)
 
-    if record.status == AgentRunStatus.RUNNING:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Run is already in progress.")
-
-    record.status = AgentRunStatus.QUEUED
-    record.error = None
-    payload = {
+    # Re-use preserved full original payload
+    payload = record.original_request or {
         "target_agent": record.target_agent,
         "issue_title": (record.issue_context or {}).get("title"),
         "repository_name": (record.issue_context or {}).get("repo"),
         "issue_url": (record.issue_context or {}).get("url"),
         "user_experience": record.user_skill_level,
     }
+
     background_tasks.add_task(_execute_workflow_task, run_id, payload)
 
     return WorkflowRunResponse(
@@ -108,17 +141,24 @@ async def retry_run(run_id: str, background_tasks: BackgroundTasks) -> WorkflowR
         status="queued",
         target_agent=record.target_agent,
         created_at=record.created_at,
-        message=f"Run '{run_id}' re-queued for execution.",
+        message=f"Run '{run_id}' re-queued for execution with full preserved context.",
+        record=record.model_dump(),
     )
 
 
 @router.post("/agents/runs/{run_id}/cancel", summary="Cancel a running task")
 async def cancel_run(run_id: str) -> Dict[str, Any]:
-    """Request graceful cancellation of a running agent workflow."""
-    success = task_store.cancel_run(run_id)
-    if not success:
+    """Request cooperative cancellation of a running agent workflow."""
+    record = task_store.get_run(run_id)
+    if not record:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Run '{run_id}' not found.")
-    return {"run_id": run_id, "status": "cancelled", "message": "Cancellation flag set."}
+
+    success = task_store.cancel_run(run_id)
+    return {
+        "run_id": run_id,
+        "status": "cancelled",
+        "message": "Cancellation flag set. Workflow will stop cooperatively at the earliest safe boundary.",
+    }
 
 
 # Repository Explorer API
@@ -128,17 +168,24 @@ async def explore_repository(
     max_files: int = Query(60, ge=5, le=200),
 ) -> Dict[str, Any]:
     """Retrieve verified file hierarchy and contributing guidelines for the repository."""
-    context = await github_client.get_repo_context(repo)
+    clean_repo = normalize_repo_name(repo)
+    if not clean_repo or not is_valid_repo_name(clean_repo):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid repository format '{repo}'. Expected 'owner/repo'.",
+        )
+
+    context = await github_client.get_repo_context(clean_repo)
     file_names = context.get("verified_files", [])
     contributing_found = context.get("contributing_found", False)
     contributing_url = context.get("contributing_url")
 
-    readme_file = next((f for f in file_names if f.lower().startswith("readme")), None)
-    contributing_file = next((f for f in file_names if "contribut" in f.lower()), None)
+    readme_file = context.get("readme_file") or next((f for f in file_names if f.lower().startswith("readme")), None)
+    contributing_file = context.get("contributing_file") or next((f for f in file_names if "contribut" in f.lower()), None)
     test_dirs = [f for f in file_names if "test" in f.lower()]
 
     return {
-        "repository_name": repo,
+        "repository_name": clean_repo,
         "files_count": len(file_names),
         "files": file_names,
         "verified_files": file_names,
@@ -158,4 +205,10 @@ async def inspect_repository_file(
     path: str = Query(..., description="File path within the repository"),
 ) -> Dict[str, Any]:
     """Safely fetch and inspect text file contents from GitHub within strict size bounds."""
-    return await github_client.get_file_content(repo, path)
+    clean_repo = normalize_repo_name(repo)
+    if not clean_repo or not is_valid_repo_name(clean_repo):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid repository format '{repo}'. Expected 'owner/repo'.",
+        )
+    return await github_client.get_file_content(clean_repo, path)

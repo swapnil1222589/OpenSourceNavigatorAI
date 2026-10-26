@@ -3,7 +3,7 @@ import time
 from typing import Any, Dict, Optional
 from app.agents.base import AgentMetadata, AgentRunStatus, BaseAgent
 from app.agents.task_store import task_store
-from app.schemas.agent_schemas import WorkflowRunRequest
+from app.schemas.agent_schemas import adapt_input_for_agent
 
 
 class OrchestratorAgent(BaseAgent):
@@ -15,7 +15,7 @@ class OrchestratorAgent(BaseAgent):
                 id="orchestrator",
                 name="Workflow Orchestrator",
                 role="Pipeline Dispatcher & Conductor",
-                description="Coordinates specialist agents deterministically, passes validated context, manages cancellation, and records stage transitions.",
+                description="Coordinates specialist agents deterministically, passes validated context, manages cooperative cancellation, and records stage transitions.",
                 inputs_required=["target_agent"],
                 produces=["combined_result", "agents_state", "duration_ms"],
                 phase=0,
@@ -29,6 +29,11 @@ class OrchestratorAgent(BaseAgent):
         run_id = context.get("run_id", f"run-{int(time.time())}")
         target = payload.get("target_agent", "orchestrator")
 
+        # Check cooperative cancellation before starting
+        if task_store.is_cancelled(run_id):
+            task_store.finish_run(run_id=run_id, status=AgentRunStatus.CANCELLED)
+            return {}
+
         if target != "orchestrator" and target in self.agents_map:
             # Run single agent
             return await self._run_single_agent(target, payload, context)
@@ -36,7 +41,9 @@ class OrchestratorAgent(BaseAgent):
         # Run complete pipeline
         return await self._run_pipeline(run_id, payload)
 
-    async def _run_single_agent(self, agent_id: str, payload: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    async def _run_single_agent(
+        self, agent_id: str, payload: Dict[str, Any], context: Dict[str, Any]
+    ) -> Dict[str, Any]:
         run_id = context.get("run_id", f"run-{int(time.time())}")
         agent = self.agents_map[agent_id]
         t0 = time.time()
@@ -51,8 +58,41 @@ class OrchestratorAgent(BaseAgent):
         )
 
         try:
-            res = await agent.execute(payload, context)
+            # Check cancellation right before running agent
+            if task_store.is_cancelled(run_id):
+                task_store.update_agent_state(
+                    run_id=run_id,
+                    agent_id=agent.metadata.id,
+                    agent_name=agent.metadata.name,
+                    status=AgentRunStatus.CANCELLED,
+                )
+                task_store.finish_run(run_id=run_id, status=AgentRunStatus.CANCELLED)
+                return {}
+
+            adapted_payload = adapt_input_for_agent(agent_id, payload)
+            res = await agent.execute(adapted_payload, context)
+
+            # Check cancellation after agent execution
+            if task_store.is_cancelled(run_id):
+                duration = round((time.time() - t0) * 1000, 2)
+                task_store.update_agent_state(
+                    run_id=run_id,
+                    agent_id=agent.metadata.id,
+                    agent_name=agent.metadata.name,
+                    status=AgentRunStatus.CANCELLED,
+                    completed_at=time.time(),
+                    duration_ms=duration,
+                    output_data=res,
+                )
+                task_store.finish_run(
+                    run_id=run_id, status=AgentRunStatus.CANCELLED, combined_result={agent_id: res}
+                )
+                return res
+
             duration = round((time.time() - t0) * 1000, 2)
+            model_used = res.get("model_used") if isinstance(res, dict) else None
+            mode = res.get("execution_mode") if isinstance(res, dict) else None
+
             task_store.update_agent_state(
                 run_id=run_id,
                 agent_id=agent.metadata.id,
@@ -61,11 +101,17 @@ class OrchestratorAgent(BaseAgent):
                 completed_at=time.time(),
                 duration_ms=duration,
                 output_data=res,
+                model_used=model_used,
+                execution_mode=mode,
             )
-            task_store.finish_run(run_id=run_id, status=AgentRunStatus.COMPLETED, combined_result={agent_id: res})
+            task_store.finish_run(
+                run_id=run_id, status=AgentRunStatus.COMPLETED, combined_result={agent_id: res}
+            )
             return res
+
         except Exception as e:
             duration = round((time.time() - t0) * 1000, 2)
+            error_msg = str(e)
             task_store.update_agent_state(
                 run_id=run_id,
                 agent_id=agent.metadata.id,
@@ -73,9 +119,14 @@ class OrchestratorAgent(BaseAgent):
                 status=AgentRunStatus.FAILED,
                 completed_at=time.time(),
                 duration_ms=duration,
-                error=str(e),
+                error=error_msg,
             )
-            task_store.finish_run(run_id=run_id, status=AgentRunStatus.FAILED, error=str(e))
+            task_store.finish_run(
+                run_id=run_id,
+                status=AgentRunStatus.FAILED,
+                error=error_msg,
+                failing_stage=agent_id,
+            )
             raise
 
     async def _run_pipeline(self, run_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -100,8 +151,11 @@ class OrchestratorAgent(BaseAgent):
         ]
 
         for agent_id in pipeline_sequence:
+            # Check cooperative cancellation before each stage
             if task_store.is_cancelled(run_id):
-                task_store.finish_run(run_id=run_id, status=AgentRunStatus.CANCELLED, combined_result=combined_result)
+                task_store.finish_run(
+                    run_id=run_id, status=AgentRunStatus.CANCELLED, combined_result=combined_result
+                )
                 return combined_result
 
             agent = self.agents_map.get(agent_id)
@@ -118,7 +172,7 @@ class OrchestratorAgent(BaseAgent):
                 input_summary=f"Running phase {agent.metadata.phase}: {agent.metadata.name}",
             )
 
-            # Build inputs with accumulated context
+            # Build inputs with accumulated context from earlier pipeline stages
             agent_payload: Dict[str, Any] = {
                 "issue_title": issue_title,
                 "issue_body": issue_body,
@@ -146,8 +200,23 @@ class OrchestratorAgent(BaseAgent):
                 agent_payload["completed_task_ids"] = []
 
             try:
-                res = await agent.execute(agent_payload, {"run_id": run_id})
+                adapted_payload = adapt_input_for_agent(agent_id, agent_payload)
+                res = await agent.execute(adapted_payload, {"run_id": run_id})
+
+                # Check cooperative cancellation right after stage returns
+                if task_store.is_cancelled(run_id):
+                    combined_result[agent_id] = res
+                    task_store.finish_run(
+                        run_id=run_id,
+                        status=AgentRunStatus.CANCELLED,
+                        combined_result=combined_result,
+                    )
+                    return combined_result
+
                 duration = round((time.time() - t0) * 1000, 2)
+                model_used = res.get("model_used") if isinstance(res, dict) else None
+                mode = res.get("execution_mode") if isinstance(res, dict) else None
+
                 task_store.update_agent_state(
                     run_id=run_id,
                     agent_id=agent.metadata.id,
@@ -156,10 +225,14 @@ class OrchestratorAgent(BaseAgent):
                     completed_at=time.time(),
                     duration_ms=duration,
                     output_data=res,
+                    model_used=model_used,
+                    execution_mode=mode,
                 )
                 combined_result[agent_id] = res
+
             except Exception as e:
                 duration = round((time.time() - t0) * 1000, 2)
+                error_msg = f"Stage '{agent.metadata.name}' failed: {str(e)}"
                 task_store.update_agent_state(
                     run_id=run_id,
                     agent_id=agent.metadata.id,
@@ -169,9 +242,24 @@ class OrchestratorAgent(BaseAgent):
                     duration_ms=duration,
                     error=str(e),
                 )
-                # Keep partial results and mark run as failed
-                task_store.finish_run(run_id=run_id, status=AgentRunStatus.FAILED, combined_result=combined_result, error=str(e))
+                # Preserve useful partial results up to the failing stage
+                task_store.finish_run(
+                    run_id=run_id,
+                    status=AgentRunStatus.FAILED,
+                    combined_result=combined_result,
+                    error=error_msg,
+                    failing_stage=agent_id,
+                )
                 return combined_result
 
-        task_store.finish_run(run_id=run_id, status=AgentRunStatus.COMPLETED, combined_result=combined_result)
+        # Final cancellation check before setting completed terminal state
+        if task_store.is_cancelled(run_id):
+            task_store.finish_run(
+                run_id=run_id, status=AgentRunStatus.CANCELLED, combined_result=combined_result
+            )
+            return combined_result
+
+        task_store.finish_run(
+            run_id=run_id, status=AgentRunStatus.COMPLETED, combined_result=combined_result
+        )
         return combined_result

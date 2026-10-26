@@ -81,7 +81,16 @@ export default function Home() {
 
   // Load plans from local storage
   useEffect(() => {
-    setPlans(getStoredPlans());
+    let active = true;
+    const timer = setTimeout(() => {
+      if (active) {
+        setPlans(getStoredPlans());
+      }
+    }, 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   // Keyboard shortcut listener for Ctrl+K / Cmd+K
@@ -110,7 +119,16 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    checkSystemHealth();
+    let active = true;
+    const timer = setTimeout(() => {
+      if (active) {
+        checkSystemHealth();
+      }
+    }, 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [checkSystemHealth]);
 
   // Fetch Issues
@@ -158,7 +176,16 @@ export default function Home() {
   }, [query, language, label, repo, page, perPage, sort]);
 
   useEffect(() => {
-    loadIssues();
+    let active = true;
+    const timer = setTimeout(() => {
+      if (active) {
+        loadIssues();
+      }
+    }, 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [loadIssues]);
 
   // Handle Filter Change

@@ -102,10 +102,17 @@ export const RepositoryExplorer: React.FC<RepositoryExplorerProps> = ({
   );
 
   useEffect(() => {
-    if (initialRepo) {
-      setRepoInput(initialRepo);
-      handleExplore(initialRepo);
-    }
+    let active = true;
+    const timer = setTimeout(() => {
+      if (active && initialRepo) {
+        setRepoInput(initialRepo);
+        handleExplore(initialRepo);
+      }
+    }, 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [initialRepo, handleExplore]);
 
   const handleCopyContent = () => {

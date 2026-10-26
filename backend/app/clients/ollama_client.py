@@ -13,7 +13,10 @@ from app.schemas.analysis import (
 
 
 class OllamaClient:
-    """Client for local Ollama HTTP API with structured JSON output parsing and error handling."""
+    """Client for local Ollama HTTP API with structured JSON output parsing, truthful model reporting,
+
+    defensive prompt boundaries, and rule-based fallback handling.
+    """
 
     def __init__(self, base_url: Optional[str] = None, model: Optional[str] = None):
         self.base_url = (base_url or settings.OLLAMA_BASE_URL).rstrip("/")
@@ -32,6 +35,84 @@ class OllamaClient:
                 return False, []
         except Exception:
             return False, []
+
+    async def get_detailed_health(self) -> Dict[str, Any]:
+        """Provide detailed health info including model availability and degraded status."""
+        is_connected, available = await self.get_status()
+        configured_present = self.model in available if is_connected else False
+        active_model = self.model if configured_present else (available[0] if available else None)
+
+        degraded = False
+        degraded_reason = None
+        if not is_connected:
+            degraded = True
+            degraded_reason = f"Cannot reach Ollama at {self.base_url}. Running in rule-based fallback mode."
+        elif not configured_present:
+            degraded = True
+            if available:
+                degraded_reason = (
+                    f"Configured model '{self.model}' is not installed in Ollama. "
+                    f"Falling back to available model '{available[0]}'."
+                )
+            else:
+                degraded_reason = f"No models found in Ollama. Pull a model using `ollama pull {self.model}`."
+
+        return {
+            "connected": is_connected,
+            "configured_model": self.model,
+            "configured_model_available": configured_present,
+            "available_models": available,
+            "active_model": active_model,
+            "degraded_mode": degraded,
+            "degraded_reason": degraded_reason,
+        }
+
+    async def chat_json(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        max_tokens: int = 400,
+        timeout: float = 30.0,
+    ) -> Tuple[Optional[Dict[str, Any]], str, str, bool]:
+        """Send chat prompt to Ollama requesting JSON output.
+        Returns: (parsed_json, model_label, execution_mode, is_fallback)
+        """
+        is_up, available = await self.get_status()
+        if not is_up:
+            return None, "Rule-based Guidance (Ollama offline)", "rule_based_fallback", True
+
+        effective_model = self.model
+        model_label = effective_model
+        if effective_model not in available and available:
+            effective_model = available[0]
+            model_label = f"{effective_model} (auto-fallback from {self.model})"
+
+        payload = {
+            "model": effective_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": 0.1,
+                "num_predict": max_tokens,
+            },
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                res = await client.post(f"{self.base_url}/api/chat", json=payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    content = data.get("message", {}).get("content", "")
+                    parsed = self.extract_json(content)
+                    return parsed, model_label, "ai_model", False
+                else:
+                    return None, f"Rule-based Guidance (Ollama HTTP {res.status_code})", "rule_based_fallback", True
+        except Exception:
+            return None, "Rule-based Guidance (Inference error/timeout)", "rule_based_fallback", True
 
     def _build_system_prompt(self) -> str:
         return (
@@ -52,13 +133,13 @@ class OllamaClient:
     ) -> str:
         safe_title = req.issue_title.strip()[:300]
         safe_repo = req.repository_name.strip()[:150]
-        safe_body = req.issue_body.strip()[:1500] if req.issue_body else "(No description provided)"
+        safe_body = req.issue_body.strip()[:2000] if req.issue_body else "(No description provided)"
         labels_str = ", ".join(req.labels) if req.labels else "(None)"
         skill_level = req.user_skill_level or "Beginner"
 
         verified_files_info = ""
         if repo_context and repo_context.get("verified_files"):
-            files_str = ", ".join(repo_context["verified_files"][:15])
+            files_str = ", ".join(repo_context["verified_files"][:20])
             verified_files_info = f"\nVerified Repository Layout (top-level entries):\n{files_str}\n"
 
         return f"""Analyze this GitHub issue for an open-source contributor:
@@ -111,9 +192,12 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
         self,
         request: AnalyzeRequest,
         repo_context: Optional[Dict[str, Any]] = None,
-        reason: str = "Local AI Accelerated",
+        reason: str = "Rule-based Heuristic Guidance (Ollama offline/unavailable)",
     ) -> AnalysisResult:
-        """Deterministic, grounded fallback analysis when local LLM inference times out or is under load."""
+        """Deterministic, grounded rule-based guidance when local LLM inference times out, is unavailable, or under load.
+
+        Truthfully labels this guidance as rule-based rather than fabricating AI reasoning.
+        """
         title = request.issue_title.strip()
         repo = request.repository_name.strip()
         body = (request.issue_body or "").strip()
@@ -150,6 +234,7 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                         rationale="Primary source directory containing core application logic.",
                         is_hypothesis=False,
                         is_verified_in_repo=True,
+                        provenance="Verified from GitHub",
                     ))
                 elif "test" in f.lower():
                     areas.append(SuggestedAreaHypothesis(
@@ -157,6 +242,7 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                         rationale="Repository test suite for reproducing issue and verifying fix.",
                         is_hypothesis=False,
                         is_verified_in_repo=True,
+                        provenance="Verified from GitHub",
                     ))
             if not areas:
                 areas.append(SuggestedAreaHypothesis(
@@ -164,6 +250,7 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                     rationale="Verified top-level entry in repository tree.",
                     is_hypothesis=False,
                     is_verified_in_repo=True,
+                    provenance="Verified from GitHub",
                 ))
         else:
             areas.append(SuggestedAreaHypothesis(
@@ -171,6 +258,7 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                 rationale="Hypothetical primary source folder based on common project conventions.",
                 is_hypothesis=True,
                 is_verified_in_repo=False,
+                provenance="Inferred by AI",
             ))
 
         clean_problem = body[:300] if body else f"Resolution required for: '{title}'."
@@ -213,26 +301,29 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                 "Implemented targeted fix with minimal changes.",
                 "All local test suites and linting checks pass cleanly.",
             ],
-            model_used=f"deepseek-r1:8b ({reason})",
+            model_used=reason,
             user_skill_level=skill,
             retrieved_repo_context=repo_context,
-            disclaimer="Grounded analysis generated from verified repository context. Guidance is advisory.",
+            execution_mode="rule_based_fallback",
+            is_rule_based_fallback=True,
+            provenance="Grounded rule-based heuristic analysis (Ollama offline/unavailable)",
+            disclaimer="AI-generated guidance may be incorrect. Rule-based heuristic guidance generated from repository context. Guidance is advisory.",
         )
 
-    def _extract_json(self, raw_text: str) -> Dict[str, Any]:
+    def extract_json(self, raw_text: str) -> Dict[str, Any]:
         """Robustly extract and parse JSON from model output, handling thought tags or markdown fences."""
         cleaned = raw_text.strip()
 
         # Strip DeepSeek R1 <think>...</think> tags if present
         cleaned = re.sub(r"<think>[\s\S]*?</think>", "", cleaned, flags=re.DOTALL).strip()
 
-        # Try direct parse
+        # Direct parse
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
             pass
 
-        # Try markdown block ```json ... ```
+        # Markdown block ```json ... ```
         fence_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", cleaned, re.DOTALL)
         if fence_match:
             try:
@@ -240,7 +331,7 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
             except json.JSONDecodeError:
                 pass
 
-        # Try finding outer braces { ... }
+        # Outer braces { ... }
         brace_match = re.search(r"(\{[\s\S]*\})", cleaned, re.DOTALL)
         if brace_match:
             try:
@@ -249,6 +340,9 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                 pass
 
         raise ValueError("Model output did not contain valid JSON.")
+
+    # Alias for backwards-compatibility with tests
+    _extract_json = extract_json
 
     async def analyze_issue(
         self,
@@ -263,14 +357,18 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
         is_up, available = await self.get_status()
         if not is_up:
             if allow_fallback:
-                return self._generate_grounded_fallback(request, repo_context, reason="Offline Grounding Fallback")
+                return self._generate_grounded_fallback(
+                    request, repo_context, reason="Rule-based Guidance (Ollama offline)"
+                )
             raise ConnectionError(
                 f"Cannot connect to Ollama at {self.base_url}. Ensure the Ollama service is running on your machine."
             )
 
         effective_model = self.model
+        model_label = effective_model
         if effective_model not in available and available:
             effective_model = available[0]
+            model_label = f"{effective_model} (auto-fallback from {self.model})"
 
         payload = {
             "model": effective_model,
@@ -293,19 +391,23 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                 res = await client.post(f"{self.base_url}/api/chat", json=payload)
                 if res.status_code == 404:
                     if allow_fallback:
-                        return self._generate_grounded_fallback(request, repo_context, reason="Model Fallback")
+                        return self._generate_grounded_fallback(
+                            request, repo_context, reason=f"Rule-based Guidance (Model '{effective_model}' not found)"
+                        )
                     raise FileNotFoundError(
                         f"Model '{effective_model}' not found in Ollama. Available models: {available}. "
                         f"Run `ollama pull {effective_model}` to download it."
                     )
                 if res.status_code != 200:
                     if allow_fallback:
-                        return self._generate_grounded_fallback(request, repo_context, reason="HTTP Fallback")
+                        return self._generate_grounded_fallback(
+                            request, repo_context, reason=f"Rule-based Guidance (Ollama HTTP {res.status_code})"
+                        )
                     raise RuntimeError(f"Ollama returned HTTP {res.status_code}: {res.text}")
 
                 data = res.json()
                 raw_response = data.get("message", {}).get("content", "")
-                parsed = self._extract_json(raw_response)
+                parsed = self.extract_json(raw_response)
 
                 # Normalize difficulty
                 raw_diff = str(parsed.get("estimated_difficulty", "Intermediate")).strip().title()
@@ -335,6 +437,7 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                             rationale=rationale,
                             is_hypothesis=not is_verified,
                             is_verified_in_repo=is_verified,
+                            provenance="Verified from GitHub" if is_verified else "Inferred by AI",
                         )
                     )
 
@@ -362,14 +465,19 @@ Note: "estimated_difficulty" must be exactly one of: "Beginner", "Intermediate",
                     common_pitfalls=parsed.get("common_pitfalls", []),
                     maintainer_questions=parsed.get("maintainer_questions", []),
                     verification_checklist=parsed.get("verification_checklist", []),
-                    model_used=effective_model,
+                    model_used=model_label,
                     user_skill_level=request.user_skill_level or "Beginner",
                     retrieved_repo_context=repo_context,
+                    execution_mode="ai_model",
+                    is_rule_based_fallback=False,
+                    provenance=f"Grounded AI reasoning using {model_label}",
                 )
 
         except (httpx.TimeoutException, TimeoutError):
             if allow_fallback:
-                return self._generate_grounded_fallback(request, repo_context, reason="Accelerated Grounding")
+                return self._generate_grounded_fallback(
+                    request, repo_context, reason=f"Rule-based Guidance (Ollama timed out after {call_timeout}s)"
+                )
             raise TimeoutError(
                 f"Ollama inference timed out after {self.timeout}s. The model may still be generating or your system is under heavy load."
             )

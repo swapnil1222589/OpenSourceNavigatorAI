@@ -132,12 +132,18 @@ Access the application:
 
 ### 3. Run Automated Tests
 ```powershell
-# Backend automated tests (24 passed)
+# Backend automated tests (32 passed: reliability, cancellation, context propagation, rate limits, schema validation)
 cd D:\OpenSourceNavigatorAI\backend
 .\.venv\Scripts\python -m pytest -v
 
-# Frontend production build verification
+# Frontend unit & regression tests (12 passed: storage synthesis, task lifecycle, API client reliability)
 cd D:\OpenSourceNavigatorAI\frontend
+npm test
+
+# Frontend linting (0 errors, 0 warnings)
+npm run lint
+
+# Frontend production build verification
 npm run build
 ```
 
@@ -152,19 +158,28 @@ When finished:
 
 ## 🔧 Environment Configuration
 
-### Backend (`backend/.env`)
+### Backend (`backend/.env` or `.env.example`)
 | Variable | Default | Description |
 |---|---|---|
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama HTTP API endpoint |
-| `OLLAMA_MODEL` | `deepseek-r1:8b` | Local model used for inference |
+| `OLLAMA_MODEL` | `deepseek-r1:8b` | Configurable local open-weight model (e.g. `llama3:8b`, `deepseek-r1:8b`, `qwen2.5-coder:7b`) |
 | `OLLAMA_TIMEOUT_SECONDS` | `120.0` | Timeout threshold for inference |
-| `GITHUB_TOKEN` | *(empty / optional)* | Personal access token for 5,000 req/h rate limits |
-| `CORS_ORIGINS` | `http://localhost:3000` | Allowed client origins |
+| `GITHUB_TOKEN` | *(empty / optional)* | Personal access token for 5,000 req/h rate limits (unauthenticated: 60 req/h) |
+| `CORS_ORIGINS` / `FRONTEND_ORIGIN` | `http://localhost:3000` | Allowed client origins (comma-separated or single string) |
 
 ### Frontend (`frontend/.env.local`)
 | Variable | Default | Description |
 |---|---|---|
 | `NEXT_PUBLIC_API_BASE_URL` | `http://localhost:8000` | Target FastAPI backend URL |
+
+---
+
+## 💡 Reliability & Truthful AI Design Principles
+
+1. **Truthful Model Reporting:** The application dynamically detects and reports the active Ollama model. If Ollama is offline or the model is missing, the backend degrades gracefully to deterministic rule-based guidance clearly tagged as `[Rule-Based Guidance (Offline Fallback)]`, never fabricating model telemetry.
+2. **Cooperative Cancellation & Safe Retries:** Multi-agent workflows verify cancellation tokens before and after every specialist agent. Retries discard cancellation flags, reset status cleanly, and preserve the original user request payload.
+3. **Evidence vs. Hypothesis Provenance:** Every task in the Contribution Map distinguishes between verified GitHub facts (`[Verified from GitHub]`), AI-inferred recommendations (`[Inferred by AI]`), and unexecuted test plans (`[Proposed]`).
+4. **Resilient In-Memory Task Store:** Workflow execution records are maintained in a thread-safe in-memory task store with bounded retention (latest 50 runs), while custom Contribution Maps and task tracking persist in the contributor's browser `localStorage`.
 
 ---
 

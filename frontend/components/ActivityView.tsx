@@ -44,7 +44,16 @@ export const ActivityView: React.FC<ActivityViewProps> = ({ onGoToStudio }) => {
   }, []);
 
   useEffect(() => {
-    fetchRuns();
+    let active = true;
+    const timer = setTimeout(() => {
+      if (active) {
+        fetchRuns();
+      }
+    }, 0);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [fetchRuns]);
 
   // Auto-refresh interval

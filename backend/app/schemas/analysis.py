@@ -10,10 +10,11 @@ class DifficultyLevel(str, Enum):
 
 
 class SuggestedAreaHypothesis(BaseModel):
-    area_or_path: str = Field(description="Hypothetical file, module, or directory path to inspect")
-    rationale: str = Field(description="Why this area might relate to the issue")
-    is_hypothesis: bool = Field(default=True, description="True if based on contextual hypothesis")
+    area_or_path: str = Field(description="File, module, or directory path to inspect")
+    rationale: str = Field(description="Why this area relates to the issue")
+    is_hypothesis: bool = Field(default=True, description="True if based on AI hypothesis, false if verified in repo")
     is_verified_in_repo: bool = Field(default=False, description="True if path confirmed present in repository")
+    provenance: str = Field(default="Inferred by AI", description="Provenance indicator: Verified from GitHub | Inferred by AI")
 
 
 class AnalyzeRequest(BaseModel):
@@ -22,7 +23,10 @@ class AnalyzeRequest(BaseModel):
     repository_name: str = Field(..., min_length=3, max_length=200)
     issue_url: str = Field(...)
     labels: List[str] = Field(default_factory=list)
-    user_skill_level: Optional[str] = Field(default="Beginner", description="Contributor self-assessed level (Beginner, Intermediate, Advanced)")
+    user_skill_level: Optional[str] = Field(
+        default="Beginner",
+        description="Contributor self-assessed level (Beginner, Intermediate, Advanced)",
+    )
 
 
 class AnalysisResult(BaseModel):
@@ -44,7 +48,10 @@ class AnalysisResult(BaseModel):
     model_used: str
     user_skill_level: str = "Beginner"
     retrieved_repo_context: Optional[Dict[str, Any]] = None
+    execution_mode: str = "ai_model"
+    is_rule_based_fallback: bool = False
+    provenance: str = "AI reasoning synthesized from verified repository metadata"
     disclaimer: str = (
-        "AI-generated guidance may be incorrect. Verify recommendations against the "
-        "repository and maintainer instructions."
+        "AI-generated guidance may be incorrect and is advisory. Verify recommendations against the "
+        "repository code and maintainer instructions before submitting a PR."
     )

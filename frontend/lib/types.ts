@@ -30,11 +30,18 @@ export interface IssueSearchResponse {
   message?: string | null;
 }
 
+export type TaskProvenance =
+  | 'Verified from GitHub'
+  | 'Inferred by AI'
+  | 'Needs manual verification'
+  | 'Not available';
+
 export interface SuggestedAreaHypothesis {
   area_or_path: string;
   rationale: string;
   is_hypothesis: boolean;
   is_verified_in_repo?: boolean;
+  provenance?: TaskProvenance;
 }
 
 export interface AnalysisResult {
@@ -60,6 +67,9 @@ export interface AnalysisResult {
     contributing_found?: boolean;
     contributing_url?: string | null;
   } | null;
+  execution_mode?: string;
+  is_rule_based_fallback?: boolean;
+  provenance?: string;
   disclaimer: string;
 }
 
@@ -68,6 +78,9 @@ export interface ChecklistItem {
   text: string;
   completed: boolean;
   custom?: boolean;
+  provenance?: TaskProvenance;
+  phase?: string;
+  is_hypothesis?: boolean;
 }
 
 export type PlanStatus = 'Not Started' | 'In Progress' | 'Completed';
@@ -85,19 +98,27 @@ export interface ContributionPlan {
   implementation_tasks: ChecklistItem[];
   testing_tasks: ChecklistItem[];
   pr_checklist: ChecklistItem[];
+  source_workflow_run_id?: string;
+  model_used?: string;
 }
 
 export interface HealthStatus {
   status: string;
+  system_health?: string;
   app_name: string;
   version: string;
   ollama: {
     connected: boolean;
     configured_model: string;
+    model_available?: boolean;
     available_models: string[];
+    active_model?: string | null;
+    degraded_mode?: boolean;
+    degraded_reason?: string | null;
   };
   github: {
     token_configured: boolean;
+    rate_limit_authenticated?: boolean;
   };
 }
 
@@ -154,6 +175,8 @@ export interface AgentExecutionRecord {
   error?: string | null;
   input_summary?: string | Record<string, unknown> | null;
   output_data?: Record<string, unknown> | null;
+  model_used?: string | null;
+  execution_mode?: string | null;
 }
 
 export interface WorkflowRunRecord {
@@ -176,11 +199,13 @@ export interface WorkflowRunRecord {
   duration_ms?: number | null;
   total_duration_ms?: number | null;
   error?: string | null;
+  failing_stage?: string | null;
   user_skill_level?: string;
   agents_state?: Record<string, AgentExecutionRecord>;
   agent_executions?: AgentExecutionRecord[];
   combined_result?: Record<string, unknown> | null;
   final_result?: Record<string, unknown> | null;
+  original_request?: WorkflowRunRequest | Record<string, unknown> | null;
 }
 
 export interface WorkflowRunRequest {
@@ -197,6 +222,11 @@ export interface WorkflowRunRequest {
   search_query?: string;
   search_language?: string;
   search_label?: string;
+  search_page?: number;
+  search_per_page?: number;
+  search_sort?: string;
+  search_params?: Record<string, unknown>;
+  upstream_outputs?: Record<string, unknown>;
 }
 
 export interface WorkflowRunResponse {

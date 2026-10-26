@@ -27,9 +27,15 @@ class AgentMetadata(BaseModel):
     display_name: Optional[str] = None
     capabilities: List[str] = Field(default_factory=list)
     system_prompt_snippet: Optional[str] = None
-    model: str = "deepseek-r1:8b"
+    model: str = ""
 
     def model_post_init(self, __context: Any) -> None:
+        if not self.model:
+            try:
+                from app.core.config import settings
+                self.model = settings.OLLAMA_MODEL
+            except Exception:
+                self.model = "deepseek-r1:8b"
         if not self.display_name:
             self.display_name = self.name
         if not self.capabilities:
@@ -48,6 +54,8 @@ class AgentExecutionRecord(BaseModel):
     input_summary: Optional[str] = None
     output_data: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    model_used: Optional[str] = None
+    execution_mode: Optional[str] = None
 
 
 class WorkflowRunRecord(BaseModel):
@@ -67,6 +75,9 @@ class WorkflowRunRecord(BaseModel):
     combined_result: Optional[Dict[str, Any]] = None
     final_result: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
+    failing_stage: Optional[str] = None
+    model_used: Optional[str] = None
+    original_request: Optional[Dict[str, Any]] = None
 
     def sync_aliases(self) -> None:
         """Keep both dictionary and list forms in sync for frontend compatibility."""
