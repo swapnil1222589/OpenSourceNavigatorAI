@@ -15,7 +15,7 @@ from app.clients.ollama_client import OllamaClient
 class AgentRegistry:
     """Central registry for all specialist agents."""
 
-    def __init__(self, github_client: GitHubClient, ollama_client: OllamaClient):
+    def __init__(self, github_client: GitHubClient, ollama_client: OllamaClient): 
         self.github_client = github_client
         self.ollama_client = ollama_client
 
