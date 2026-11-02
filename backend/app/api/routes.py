@@ -1,11 +1,11 @@
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query, status
- 
+  
 from app.clients.github_client import GitHubClient
 from app.clients.ollama_client import OllamaClient
 from app.core.config import settings
 from app.schemas.agent_schemas import is_valid_repo_name, normalize_repo_name
-from app.schemas.analysis import AnalysisResult, AnalyzeRequest
+from app.schemas.analysis import AnalysisResult, AnalyzeRequest 
 from app.schemas.issue import IssueSearchResponse
 
 router = APIRouter()
