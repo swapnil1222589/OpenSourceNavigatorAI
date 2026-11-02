@@ -40,7 +40,7 @@ async def _execute_workflow_task(run_id: str, payload: Dict[str, Any]):
 
 
 @router.post(
-    "/agents/runs",
+    "/agents/runs", 
     response_model=WorkflowRunResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Trigger agent or full workflow run",
