@@ -78,7 +78,7 @@ async def analyze_issue(payload: AnalyzeRequest) -> AnalysisResult:
     if not clean_repo or not is_valid_repo_name(clean_repo):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Invalid repository format '{payload.repository_name}'. Expected 'owner/repo'.",
+            detail=f"Invalid repository format '{payload.repository_name}'. Expected 'owner/repo'.", 
         )
 
     try:
