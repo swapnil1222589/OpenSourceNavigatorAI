@@ -9,7 +9,7 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description=(
-        "OpenSource Navigator AI Backend API - Empowering beginner developers and students "
+        "OpenSource Navigator AI Backend API - Empowering beginner developers and students " 
         "to discover real GitHub issues and navigate their first open-source contributions "
         "using local open-weight AI models."
     ),
