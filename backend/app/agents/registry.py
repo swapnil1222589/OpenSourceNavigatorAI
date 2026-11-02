@@ -26,7 +26,7 @@ class AgentRegistry:
     def _register_all(self):
         a1 = IssueDiscoveryAgent(self.github_client)
         a2 = IssueUnderstandingAgent(self.ollama_client)
-        a3 = RepositoryContextAgent(self.github_client)
+        a3 = RepositoryContextAgent(self.github_client) 
         a4 = SkillMatchingAgent(self.ollama_client)
         a5 = ContributionPlanningAgent(self.ollama_client)
         a6 = TestStrategyAgent(self.ollama_client)
