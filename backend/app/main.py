@@ -35,7 +35,7 @@ async def root():
     return {
         "message": "Welcome to OpenSource Navigator AI API",
         "documentation": "/docs",
-        "health_check": f"{settings.API_V1_PREFIX}/health",
+        "health_check": f"{settings.API_V1_PREFIX}/health", 
         "version": settings.VERSION,
     }
 
