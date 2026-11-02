@@ -71,7 +71,7 @@ flowchart TD
         A3["3. Repo Context"]
         A4["4. Skill Matching"]
         A5["5. Planning"]
-        A6["6. Test Strategy"]
+        A6["6. Test Strategy"] 
         A7["7. PR Readiness"]
         A8["8. Orchestrator"]
     end
