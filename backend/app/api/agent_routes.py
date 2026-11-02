@@ -28,7 +28,7 @@ async def list_agents() -> List[AgentMetadata]:
 @router.get("/agents/runs", response_model=List[WorkflowRunRecord], summary="List recent agent workflow runs")
 async def list_runs(limit: int = Query(20, ge=1, le=50)) -> List[WorkflowRunRecord]:
     """Retrieve recent task execution history with status, timings, and durations."""
-    return task_store.list_runs(limit=limit)
+    return task_store.list_runs(limit=limit) 
 
 
 async def _execute_workflow_task(run_id: str, payload: Dict[str, Any]):
