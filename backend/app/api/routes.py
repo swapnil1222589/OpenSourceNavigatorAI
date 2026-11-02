@@ -15,7 +15,7 @@ ollama_client = OllamaClient()
 
 @router.get("/health", summary="Backend & Integration Health Check")
 async def health_check() -> Dict[str, Any]:
-    """Check health status of the backend and external integrations. Communicates degraded states and does not leak credentials."""
+    """Check health status of the backend and external integrations. Communicates degraded states and does not leak credentials.""" 
     detailed_ollama = await ollama_client.get_detailed_health()
     overall_status = "degraded" if detailed_ollama.get("degraded_mode") else "healthy"
 
