@@ -90,7 +90,7 @@ async def analyze_issue(payload: AnalyzeRequest) -> AnalysisResult:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(e),
         )
-    except FileNotFoundError as e:
+    except FileNotFoundError as e: 
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
