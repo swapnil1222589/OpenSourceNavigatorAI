@@ -17,7 +17,7 @@ class AgentRegistry:
 
     def __init__(self, github_client: GitHubClient, ollama_client: OllamaClient): 
         self.github_client = github_client
-        self.ollama_client = ollama_client
+        self.ollama_client = ollama_client 
 
         # Initialize specialist agents
         self._agents: Dict[str, BaseAgent] = {}
