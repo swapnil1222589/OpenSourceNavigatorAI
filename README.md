@@ -56,7 +56,7 @@ flowchart TD
     end
 
     subgraph Backend ["Backend API Service (FastAPI - localhost:8000)"]
-        FastAPI["FastAPI Application"]
+        FastAPI["FastAPI Application"]  
         AgentRouter["Agent & Repository Router (/api/v1/agents, /api/v1/repository)"]
         CoreRouter["Core Router (/api/v1/issues, /api/v1/analyze)"]
         TaskStore["Bounded In-Memory TaskStore (Runs, Telemetry, Cancellation)"]
