@@ -27,7 +27,7 @@ Contributing to open source for the first time can be intimidating. Beginners ar
 
 ---
 
-## 🤖 8 Autonomous AI Specialist Agents
+## 🤖 8 Autonomous AI Specialist Agents 
 
 | Agent Name | Role | Primary Objective | Key Outputs |
 | :--- | :--- | :--- | :--- |
