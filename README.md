@@ -5,7 +5,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black.svg?logo=next.js&logoColor=white)](https://nextjs.org)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js%2016-black.svg?logo=next.js&logoColor=white)](https://nextjs.org) 
 [![Ollama](https://img.shields.io/badge/AI-Ollama%20(Open--Weight)-purple.svg)](https://ollama.com)
 [![Multi--Agent](https://img.shields.io/badge/Agents-8%20Specialists-teal.svg)](#-8-autonomous-ai-specialist-agents)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20PowerShell-blue.svg)](https://microsoft.com)
