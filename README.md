@@ -46,7 +46,7 @@ Contributing to open source for the first time can be intimidating. Beginners ar
 
 ```mermaid
 flowchart TD
-    subgraph Client ["Client Browser (Spatial UI - localhost:3000)"]
+    subgraph Client ["Client Browser (Spatial UI - localhost:3000)"] 
         UI["Next.js App Router UI (TypeScript + Tailwind CSS)"]
         Constellation["Interactive Agent Constellation (2D Canvas / HUD)"]
         RepoExplorer["Spatial Repository Explorer & Code Inspector"]
