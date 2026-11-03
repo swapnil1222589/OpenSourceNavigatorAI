@@ -6,7 +6,7 @@ from app.api.agent_routes import router as agent_router
 from app.core.config import settings
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
+    title=settings.PROJECT_NAME, 
     version=settings.VERSION,
     description=(
         "OpenSource Navigator AI Backend API - Empowering beginner developers and students " 
