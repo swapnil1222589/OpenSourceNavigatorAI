@@ -1,6 +1,6 @@
 # 🧭 OpenSource Navigator AI
 
-> **Explore open source. Understand the code. Make your first contribution.**  
+> **Explore open source. Understand the code. Make your first contribution.**   
 > *Built for Hacktoberfest Hack Day Pune × NIAT–ADYPU — Best Open-Source AI Project.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
