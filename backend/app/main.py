@@ -5,7 +5,7 @@ from app.api.routes import router as api_router
 from app.api.agent_routes import router as agent_router
 from app.core.config import settings
 
-app = FastAPI(
+app = FastAPI( 
     title=settings.PROJECT_NAME, 
     version=settings.VERSION,
     description=(
@@ -36,7 +36,7 @@ async def root():
         "message": "Welcome to OpenSource Navigator AI API",
         "documentation": "/docs",
         "health_check": f"{settings.API_V1_PREFIX}/health", 
-        "version": settings.VERSION,
+        "version": settings.VERSION, 
     }
 
 
