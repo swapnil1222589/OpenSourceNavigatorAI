@@ -4,7 +4,7 @@
   "private": true,
   "description": "OpenSource Navigator AI — Spatial Developer Workspace & Multi-Agent Contribution Assistant", 
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
+    "dev": "npm --prefix frontend run dev", 
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix frontend start",
     "lint": "npm --prefix frontend run lint", 
