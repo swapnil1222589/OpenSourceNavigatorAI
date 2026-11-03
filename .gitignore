@@ -40,7 +40,7 @@ var/
 wheels/
 *.egg-info/
 .installed.cfg
-*.egg
+*.egg 
 .pytest_cache/
 .coverage 
 htmlcov/
