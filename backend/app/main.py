@@ -30,7 +30,7 @@ app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 app.include_router(agent_router, prefix=settings.API_V1_PREFIX)
 
 
-@app.get("/", tags=["Root"])
+@app.get("/", tags=["Root"]) 
 async def root():
     return {
         "message": "Welcome to OpenSource Navigator AI API",
