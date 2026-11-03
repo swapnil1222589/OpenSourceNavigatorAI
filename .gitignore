@@ -42,7 +42,7 @@ wheels/
 .installed.cfg
 *.egg
 .pytest_cache/
-.coverage
+.coverage 
 htmlcov/
 nosetests.xml
 coverage.xml
