@@ -12,7 +12,7 @@ app = FastAPI(
         "OpenSource Navigator AI Backend API - Empowering beginner developers and students " 
         "to discover real GitHub issues and navigate their first open-source contributions "
         "using local open-weight AI models."
-    ),
+    ), 
     docs_url="/docs",
     redoc_url="/redoc",
 )
