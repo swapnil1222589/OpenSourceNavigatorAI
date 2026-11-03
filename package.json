@@ -7,7 +7,7 @@
     "dev": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix frontend start",
-    "lint": "npm --prefix frontend run lint",
+    "lint": "npm --prefix frontend run lint", 
     "test": "npm --prefix frontend test"  
   } 
 }
