@@ -12,7 +12,7 @@
  
 ---   
 
-## 🌟 Overview
+## 🌟 Overview 
 
 Contributing to open source for the first time can be intimidating. Beginners are often overwhelmed by massive codebases, cryptic maintainer jargon, and unfamiliar testing practices.
 
