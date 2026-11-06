@@ -21,7 +21,7 @@ Contributing to open source for the first time can be intimidating. Beginners ar
 1. **8 Autonomous AI Specialist Agents:** An interactive 2D orbital constellation coordinating 8 typed specialist agents (Discovery, Understanding, Repo Context, Skill Matching, Planning, Test Strategy, PR Readiness, Orchestrator) over local open-weight models.
 2. **Spatial UI & Quick Command Palette:** Dark developer HUD, responsive layouts, live agent telemetry pulses, and instant keyboard command palette (`Ctrl+K` / `⌘K`).
 3. **Repository Context Explorer:** Live file tree inspector for any target GitHub repo, displaying verified files, test suites, and contributor guidelines vs. AI hypotheses.
-4. **Discover Real Public GitHub Issues:** Live search filtered by language, topic, tags (`good first issue`, `help wanted`), and target repository (`owner/repo`), excluding pull requests and with pagination.
+4. **Discover Real Public GitHub Issues:** Live search filtered by language, topic, tags (`good first issue`, `help wanted`), and target repository (`owner/repo`), excluding pull requests and with pagination. 
 5. **Customizable Contribution Roadmaps & PR Export:** Converts AI insights into interactive checklists. Contributors can add custom tasks, track progress, and **Export to Markdown** with 1-click for GitHub PR descriptions!
 6. **Zero Paid APIs or Cloud Lock-in:** 100% functional with local open-weight AI models (`deepseek-r1:8b`, `qwen3:4b`).
 
