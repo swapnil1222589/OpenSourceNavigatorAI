@@ -14,7 +14,7 @@
 
 ## 🌟 Overview 
 
-Contributing to open source for the first time can be intimidating. Beginners are often overwhelmed by massive codebases, cryptic maintainer jargon, and unfamiliar testing practices.
+Contributing to open source for the first time can be intimidating. Beginners are often overwhelmed by massive codebases, cryptic maintainer jargon, and unfamiliar testing practices. 
 
 **OpenSource Navigator AI** empowers students and first-time contributors with a **Spatial Developer Workspace** and an **Autonomous 8-Agent AI System**:
 
