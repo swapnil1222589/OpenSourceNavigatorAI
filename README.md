@@ -1,4 +1,4 @@
-# 🧭 OpenSource Navigator AI
+# 🧭 OpenSource Navigator AI 
 
 > **Explore open source. Understand the code. Make your first contribution.**   
 > *Built for Hacktoberfest Hack Day Pune × NIAT–ADYPU — Best Open-Source AI Project.*
