@@ -42,7 +42,7 @@ Contributing to open source for the first time can be intimidating. Beginners ar
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture 
 
 ```mermaid
 flowchart TD
