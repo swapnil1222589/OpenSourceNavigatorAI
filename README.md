@@ -194,6 +194,6 @@ When finished:
 
 ---
 
-## 📜 License
+## 📜 License 
 
 MIT License. See [LICENSE](LICENSE) for details.
