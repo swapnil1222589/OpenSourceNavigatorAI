@@ -1,6 +1,6 @@
 # OpenSource Navigator AI — System Architecture
 
-**OpenSource Navigator AI** is a spatial developer workspace and multi-agent AI system engineered for students and beginner developers making their first open-source software contributions.
+**OpenSource Navigator AI** is a spatial developer workspace and multi-agent AI system engineered for students and beginner developers making their first open-source software contributions. 
 
 ---
 
