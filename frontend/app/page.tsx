@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; 
 import { Navbar } from '../components/Navbar';
 import { Sidebar, NavTab } from '../components/Sidebar';
 import { IssueSearchFilters } from '../components/IssueSearchFilters';
