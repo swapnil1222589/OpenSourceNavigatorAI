@@ -16,7 +16,7 @@ OpenSource Navigator AI features an autonomous, typed multi-agent system compose
 | **Contribution Planning Agent** | `planning` | Builds step-by-step investigation, code, and debugging milestones | Preparation steps, implementation steps, common pitfalls |
 | **Test Strategy Agent** | `test_strategy` | Formulates reproduction steps, regression cases, and test assertions | Reproduction steps, test file suggestions, assertions |
 | **PR Readiness Agent** | `pr_readiness` | Constructs commit guidelines, PR descriptions, and sanity checklists | PR title, draft description, checklist items |
-
+ 
 ---
  
 ## 2. Agent Orchestration Pipeline
