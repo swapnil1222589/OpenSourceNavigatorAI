@@ -6,7 +6,7 @@ OpenSource Navigator AI features an autonomous, typed multi-agent system compose
 
 ## 1. Multi-Agent Roster 
 
-| Agent Name | Role | Primary Objective | Key Outputs |
+| Agent Name | Role | Primary Objective | Key Outputs | 
 | :--- | :--- | :--- | :--- |
 | **Orchestrator** | `orchestrator` | Pipeline coordinator, state persistence, cancellation management | Orchestration state, combined intelligence artifact |
 | **Issue Discovery Agent** | `discovery` | Curates good-first-issues and student tasks from GitHub REST API | Issue items, difficulty rating, recommended labels |
