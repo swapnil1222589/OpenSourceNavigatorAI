@@ -15,7 +15,7 @@ import { SpatialCommandPalette } from '../components/SpatialCommandPalette';
 import { IssueCardSkeleton } from '../components/LoadingSkeleton';
 import { ErrorBanner } from '../components/ErrorBanner'; 
 import {
-  AnalysisResult,
+  AnalysisResult, 
   ContributionPlan,
   HealthStatus,
   IssueItem,
