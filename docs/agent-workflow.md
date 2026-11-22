@@ -29,7 +29,7 @@ sequenceDiagram
     participant TaskStore as TaskStore (Bounded In-Memory)
     participant Discovery as Issue Discovery Agent
     participant Understanding as Issue Understanding Agent
-    participant RepoContext as Repository Context Agent
+    participant RepoContext as Repository Context Agent 
     participant SkillMatch as Skill Matching Agent
     participant Planning as Contribution Planning Agent
     participant TestStrategy as Test Strategy Agent
