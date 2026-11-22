@@ -13,7 +13,7 @@ import { RepositoryExplorer } from '../components/RepositoryExplorer';
 import { ActivityView } from '../components/ActivityView';
 import { SpatialCommandPalette } from '../components/SpatialCommandPalette';
 import { IssueCardSkeleton } from '../components/LoadingSkeleton';
-import { ErrorBanner } from '../components/ErrorBanner';
+import { ErrorBanner } from '../components/ErrorBanner'; 
 import {
   AnalysisResult,
   ContributionPlan,
