@@ -5,7 +5,7 @@ import { Navbar } from '../components/Navbar';
 import { Sidebar, NavTab } from '../components/Sidebar';
 import { IssueSearchFilters } from '../components/IssueSearchFilters';
 import { IssueCard } from '../components/IssueCard';
-import { AnalyzerView } from '../components/AnalyzerView';
+import { AnalyzerView } from '../components/AnalyzerView'; 
 import { RoadmapView } from '../components/RoadmapView'; 
 import { AboutView } from '../components/AboutView';
 import { AgentStudio } from '../components/AgentStudio';
