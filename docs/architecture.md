@@ -72,7 +72,7 @@ flowchart TD
 - **Icons:** Lucide React icons.
 - **Key Modules:**
   - `components/AgentConstellation.tsx`: Interactive 2D constellation map displaying the 8 specialist agents with real-time status pulses (`idle`, `running`, `completed`, `failed`).
-  - `components/AgentStudio.tsx`: Full pipeline orchestration, single-agent runner, live telemetry, and agent inspector drawer with typed I/O schemas and output payload JSON copy.
+  - `components/AgentStudio.tsx`: Full pipeline orchestration, single-agent runner, live telemetry, and agent inspector drawer with typed I/O schemas and output payload JSON copy. 
   - `components/RepositoryExplorer.tsx`: Tree explorer for any target repository, live file content viewer with size limits, test directory indicators, and distinction between verified files and AI hypotheses.
   - `components/SpatialCommandPalette.tsx`: Global keyboard shortcut (`Ctrl+K` or `⌘K`) for rapid navigation and action dispatching.
   - `components/ActivityView.tsx`: Real-time workflow telemetry feed with durations, error traces, and cancellation/retry actions.
