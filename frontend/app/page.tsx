@@ -32,7 +32,7 @@ import {
   savePlan,
   toggleTaskCompletion,
   updatePlanStatus,
-} from '../lib/storage';
+} from '../lib/storage'; 
 import { ChevronLeft, ChevronRight, Sparkles, Terminal } from 'lucide-react';
 
 export default function Home() {
