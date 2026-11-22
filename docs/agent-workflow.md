@@ -4,7 +4,7 @@ OpenSource Navigator AI features an autonomous, typed multi-agent system compose
 
 ---
 
-## 1. Multi-Agent Roster
+## 1. Multi-Agent Roster 
 
 | Agent Name | Role | Primary Objective | Key Outputs |
 | :--- | :--- | :--- | :--- |
