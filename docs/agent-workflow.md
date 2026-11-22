@@ -18,7 +18,7 @@ OpenSource Navigator AI features an autonomous, typed multi-agent system compose
 | **PR Readiness Agent** | `pr_readiness` | Constructs commit guidelines, PR descriptions, and sanity checklists | PR title, draft description, checklist items |
 
 ---
-
+ 
 ## 2. Agent Orchestration Pipeline
 
 ```mermaid
