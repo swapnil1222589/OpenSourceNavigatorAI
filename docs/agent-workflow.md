@@ -22,7 +22,7 @@ OpenSource Navigator AI features an autonomous, typed multi-agent system compose
 ## 2. Agent Orchestration Pipeline
 
 ```mermaid
-sequenceDiagram
+sequenceDiagram 
     autonumber
     actor User as Contributor (Spatial UI)
     participant Orchestrator as Orchestrator Agent
